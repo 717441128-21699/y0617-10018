@@ -450,7 +450,15 @@
       <div class="user-card-actions">
         <label class="sim-fail" id="sim-fail-toggle" title="开启后提交会模拟失败，用于测试重试流程">
           <span class="dot"></span>
-          <span class="fail-label">模拟失败模式：关</span>
+          <span class="fail-label">模拟提交失败：关</span>
+        </label>
+        <label class="sim-fail" id="sim-duplicate-toggle" title="开启后邮箱/手机号异步校验会返回重复，用于测试异步校验">
+          <span class="dot"></span>
+          <span class="dup-label">模拟账号重复：关</span>
+        </label>
+        <label class="sim-fail" id="sim-load-fail-toggle" title="开启后远程下拉首次加载会失败，用于测试加载失败重试">
+          <span class="dot"></span>
+          <span class="load-label">模拟加载失败：关</span>
         </label>
         <my-button variant="outline" size="sm" id="show-changes-btn">
           查看变更字段
@@ -465,7 +473,7 @@
         <span class="dirty-badge" id="dirty-badge">● 有未保存的修改</span>
       </div>
       <div class="card-body">
-        <my-form id="profile-form" submit-changes-only>
+        <my-form id="profile-form" submit-changes-only commit-on-success warn-on-leave>
           <my-fieldset title="基本信息">
             <div class="form-grid">
               <my-input label="用户编号" name="userId" readonly value="U20240001" help-text="系统自动生成，不可修改" block></my-input>
@@ -592,6 +600,11 @@
         <div class="changes-section" id="changes-section">
           <div class="changes-title">字段变更详情</div>
           <div class="change-list" id="change-list"></div>
+        </div>
+
+        <div class="changes-section" id="unmodified-section" style="display:none;">
+          <div class="changes-title">未修改字段（未提交）</div>
+          <div class="change-list" id="unmodified-list"></div>
         </div>
 
         <div class="result-detail" style="margin-top: 24px;">
@@ -773,18 +786,49 @@
       }
     });
 
-    // ====================== 模拟失败模式 ======================
+    // ====================== 模拟开关 ======================
     let simulateFailure = false;
+    let simulateDuplicate = false;
+    let simulateLoadFailure = false;
+    let loadFailCount = 0;
+
     $('sim-fail-toggle').addEventListener('click', () => {
       simulateFailure = !simulateFailure;
       const el = $('sim-fail-toggle');
       const label = el.querySelector('.fail-label');
       if (simulateFailure) {
         el.classList.add('active');
-        label.textContent = '模拟失败模式：开（提交会报错）';
+        label.textContent = '模拟提交失败：开（提交会报错）';
       } else {
         el.classList.remove('active');
-        label.textContent = '模拟失败模式：关';
+        label.textContent = '模拟提交失败：关';
+      }
+    });
+
+    $('sim-duplicate-toggle').addEventListener('click', () => {
+      simulateDuplicate = !simulateDuplicate;
+      const el = $('sim-duplicate-toggle');
+      const label = el.querySelector('.dup-label');
+      if (simulateDuplicate) {
+        el.classList.add('active');
+        label.textContent = '模拟账号重复：开（异步校验会失败）';
+      } else {
+        el.classList.remove('active');
+        label.textContent = '模拟账号重复：关';
+      }
+    });
+
+    $('sim-load-fail-toggle').addEventListener('click', () => {
+      simulateLoadFailure = !simulateLoadFailure;
+      loadFailCount = 0;
+      const el = $('sim-load-fail-toggle');
+      const label = el.querySelector('.load-label');
+      if (simulateLoadFailure) {
+        el.classList.add('active');
+        label.textContent = '模拟加载失败：开（首次加载失败，可重试）';
+      } else {
+        el.classList.remove('active');
+        label.textContent = '模拟加载失败：关';
       }
     });
 
@@ -834,6 +878,24 @@
       initialData.manager = 'M001';
 
       profileForm.setInitialValues(initialData);
+
+      // 注册异步校验器（模拟：邮箱/手机号查重）
+      profileForm.setAsyncValidator('email', async (value, formData) => {
+        await new Promise(r => setTimeout(r, 800 + Math.random() * 400));
+        // 如果模拟重复开关打开，且不是初始值，就返回重复
+        if (simulateDuplicate && value && value !== 'zhangsan@example.com') {
+          return { valid: false, message: '该邮箱已被注册，请换一个' };
+        }
+        return { valid: true };
+      });
+      profileForm.setAsyncValidator('phone', async (value, formData) => {
+        await new Promise(r => setTimeout(r, 600 + Math.random() * 300));
+        if (simulateDuplicate && value && value !== '13812345678') {
+          return { valid: false, message: '该手机号已被占用' };
+        }
+        return { valid: true };
+      });
+
       bindDirtyBadge();
     });
 
@@ -887,6 +949,12 @@
     managerSelect.addEventListener('fetch-options', async e => {
       const { keyword, page } = e.detail;
       await mockDelay(550);
+      // 模拟加载失败：首次 fetch 失败，可重试
+      if (simulateLoadFailure && page === 1 && loadFailCount < 2) {
+        loadFailCount++;
+        managerSelect.setLoadingError('网络异常，加载失败，请点击重试');
+        return;
+      }
       const filtered = filterList(MOCK_MANAGERS, keyword);
       const paged = paginate(filtered, page);
       if (page === 1) managerSelect.setOptions(paged);
@@ -909,6 +977,12 @@
     skillsSelect.addEventListener('fetch-options', async e => {
       const { keyword, page } = e.detail;
       await mockDelay(600);
+      // 模拟加载失败
+      if (simulateLoadFailure && page === 1 && loadFailCount < 2) {
+        loadFailCount++;
+        skillsSelect.setLoadingError('数据加载失败，点击重试');
+        return;
+      }
       const filtered = filterList(MOCK_SKILLS, keyword);
       const paged = paginate(filtered, page);
       if (page === 1) skillsSelect.setOptions(paged);
@@ -938,6 +1012,8 @@
     const statInvalid = $('stat-invalid');
     const changeList = $('change-list');
     const changesSection = $('changes-section');
+    const unmodifiedList = $('unmodified-list');
+    const unmodifiedSection = $('unmodified-section');
     const submitPayload = $('submit-payload');
     const backendResponse = $('backend-response');
 
@@ -965,6 +1041,12 @@
         resultHead.className = 'result-head success';
         resultIcon.textContent = '✓';
         resultTitle.textContent = '资料保存成功';
+      } else if (resultState === 'empty') {
+        resultHead.className = 'result-head';
+        resultHead.style.background = 'var(--ui-color-bg-secondary)';
+        resultHead.style.color = 'var(--ui-color-text-secondary)';
+        resultIcon.textContent = '○';
+        resultTitle.textContent = '无修改内容，无需提交';
       } else {
         resultHead.className = 'result-head error';
         resultIcon.textContent = '✕';
@@ -977,6 +1059,13 @@
       statInvalid.textContent = summary.invalid;
       statChanged.textContent = (summary.changedFields || []).length;
 
+      const fieldLabels = {
+        username: '姓名', gender: '性别', region: '地区', birthday: '出生日期',
+        joinDate: '入职日期', email: '邮箱', phone: '手机号', manager: '上级主管',
+        department: '所属部门', skills: '技能标签', level: '职位级别', bio: '个人简介',
+        notify: '系统通知', permission: '数据权限'
+      };
+
       // 变更列表
       const cfs = Object.entries(changedValues || {});
       if (cfs.length === 0) {
@@ -984,12 +1073,6 @@
         changeList.innerHTML = '<div class="no-changes">无任何字段被修改，后端收到的 payload 为空（submit-changes-only 模式）</div>';
       } else {
         changesSection.style.display = 'block';
-        const fieldLabels = {
-          username: '姓名', gender: '性别', region: '地区', birthday: '出生日期',
-          joinDate: '入职日期', email: '邮箱', phone: '手机号', manager: '上级主管',
-          department: '所属部门', skills: '技能标签', level: '职位级别', bio: '个人简介',
-          notify: '系统通知', permission: '数据权限'
-        };
         changeList.innerHTML = cfs.map(([name, cv]) => {
           const fn = fieldLabels[name] || name;
           const oldV = formatValue(cv.oldValue, name);
@@ -1003,13 +1086,43 @@
         }).join('');
       }
 
+      // 未修改字段（仅在有变更时显示，让用户清楚哪些没提交）
+      const unmodified = summary.unmodifiedFields || [];
+      if (unmodified.length > 0 && cfs.length > 0) {
+        unmodifiedSection.style.display = 'block';
+        unmodifiedList.innerHTML = unmodified.map(name => {
+          const fn = fieldLabels[name] || name;
+          const val = formatValue(profileForm.getFieldValue(name), name);
+          return `<div class="change-row" style="opacity:0.7;">
+            <div class="field-name">${fn}</div>
+            <div class="old-val" style="flex:1; text-align:left;">${val}</div>
+            <div class="arrow" style="color:var(--ui-color-text-tertiary);">未变</div>
+            <div class="new-val" style="background:transparent; color:var(--ui-color-text-tertiary); border-color:var(--ui-color-border);">未提交</div>
+          </div>`;
+        }).join('');
+      } else {
+        unmodifiedSection.style.display = 'none';
+      }
+
       submitPayload.textContent = JSON.stringify(formData, null, 2) || '{}';
       backendResponse.textContent = JSON.stringify(backend, null, 2) || '{}';
     }
 
-    // 提交按钮
+    // 提交按钮（支持异步校验 + 空提交）
     $('btn-submit').addEventListener('click', async () => {
       resultCard.classList.remove('show');
+
+      // 先运行异步校验
+      const validateResult = await profileForm.validate('async');
+      if (!validateResult.valid) {
+        const errList = Object.entries(validateResult.summary.errors)
+          .map(([k, v]) => `${k}: ${v}`).join('；');
+        showToast.error(`校验未通过：${errList}`);
+        appendLog('event-log', 'error', { type: 'async-validate', errors: validateResult.summary.errors });
+        return;
+      }
+
+      // 校验通过再提交
       const submitResult = profileForm.submit(async (formData) => {
         if (simulateFailure) {
           await new Promise(r => setTimeout(r, 1500));
@@ -1028,12 +1141,25 @@
 
       appendLog('event-log', 'submit', {
         valid: submitResult.valid,
+        isSubmissionEmpty: submitResult.summary.isSubmissionEmpty,
         changedFields: submitResult.summary.changedFields || [],
         summary: submitResult.summary
       });
 
+      // 空提交处理
+      if (submitResult.summary.isSubmissionEmpty) {
+        renderResult({
+          resultState: 'empty',
+          formData: {},
+          changedValues: {},
+          summary: submitResult.summary,
+          backend: {}
+        });
+        showToast.info('没有检测到任何字段变更，无需提交');
+        return;
+      }
+
       if (submitResult.valid) {
-        // 等待回调完成（submit() 是同步返回，但 loading 期间会派发 submit-success / submit-error）
         profileForm.addEventListener('submit-success', (e) => {
           renderResult({
             resultState: 'success',
@@ -1042,7 +1168,8 @@
             summary: submitResult.summary,
             backend: e.detail.result
           });
-          appendLog('event-log', 'success', e.detail.result);
+          appendLog('event-log', 'success', { ...e.detail.result, dirty: profileForm.isDirty });
+          showToast.success(`保存成功！当前已为最新版本`);
         }, { once: true });
         profileForm.addEventListener('submit-error', (e) => {
           renderResult({
@@ -1056,7 +1183,6 @@
           showToast.error('提交失败：' + (e.detail.error?.message || '未知错误'));
         }, { once: true });
       } else {
-        // 校验失败：显示 toast，清空结果卡
         const errList = Object.entries(submitResult.summary.errors)
           .map(([k, v]) => `${k}: ${v}`).join('；');
         showToast.error(`校验未通过：${errList}`);
@@ -1064,19 +1190,21 @@
       }
     });
 
-    // 仅校验
-    $('btn-validate').addEventListener('click', () => {
+    // 仅校验（支持异步）
+    $('btn-validate').addEventListener('click', async () => {
       resultCard.classList.remove('show');
-      const r = profileForm.validate();
+      showToast.info('正在校验...');
+      const r = await profileForm.validate('async');
       appendLog('event-log', r.valid ? 'success' : 'error', {
         valid: r.valid,
+        mode: 'async',
         summary: r.summary
       });
       if (r.valid) {
-        showToast.success('🎉 所有字段校验通过，当前共 ' + r.summary.total + ' 个字段均符合要求');
+        showToast.success('🎉 所有字段（含异步校验）均通过，共 ' + r.summary.total + ' 个字段');
       } else {
         const n = r.summary.invalid;
-        showToast.warning(`有 ${n} 个字段未通过校验，请检查标红的字段`);
+        showToast.warning(`有 ${n} 个字段未通过校验（含异步查重）`);
       }
     });
 

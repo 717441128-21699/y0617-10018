@@ -190,6 +190,37 @@ template.innerHTML = `
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
+.load-error {
+  padding: var(--ui-spacing-lg);
+  text-align: center;
+  color: var(--ui-color-warning);
+  font-size: var(--ui-font-size-sm);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ui-spacing-sm);
+}
+.load-error .retry-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--ui-spacing-xs) var(--ui-spacing-md);
+  font-size: var(--ui-font-size-sm);
+  line-height: var(--ui-line-height-normal);
+  border: 1px solid var(--ui-color-border);
+  border-radius: var(--ui-radius-sm);
+  background: var(--ui-color-bg);
+  color: var(--ui-color-text-primary);
+  cursor: pointer;
+  transition: all var(--ui-transition-fast);
+  font-family: inherit;
+}
+.load-error .retry-btn:hover {
+  border-color: var(--ui-color-border-hover);
+  background: var(--ui-color-bg-secondary);
+}
+
 .options-list {
   list-style: none;
   margin: 0;
@@ -206,12 +237,44 @@ template.innerHTML = `
   inset: 0;
   background: transparent;
 }
+.options-list.fetching {
+  pointer-events: none;
+  opacity: 0.35;
+}
+.options-list.fetching::before {
+  content: '搜索中...';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: var(--ui-color-text-secondary);
+  font-size: var(--ui-font-size-sm);
+  z-index: 1;
+  background: var(--ui-color-bg);
+  padding: var(--ui-spacing-xs) var(--ui-spacing-md);
+  border-radius: var(--ui-radius-sm);
+}
 
 .load-more-hint {
   padding: var(--ui-spacing-sm);
   text-align: center;
   color: var(--ui-color-text-tertiary);
   font-size: var(--ui-font-size-xs);
+}
+.load-more-hint.loading-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ui-spacing-xs);
+}
+.load-more-hint .loading-spinner-sm {
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--ui-color-text-tertiary);
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  display: inline-block;
 }
 
 .option {
@@ -340,6 +403,10 @@ template.innerHTML = `
       <span class="loading-spinner"></span>
       <span>加载中...</span>
     </div>
+    <div class="load-error" style="display:none;">
+      <span class="error-message">加载失败</span>
+      <button class="retry-btn" type="button">点击重试</button>
+    </div>
     <div class="empty-state" style="display:none;"></div>
     <ul class="options-list"></ul>
     <div class="load-more-hint" style="display:none;">滚动加载更多</div>
@@ -351,7 +418,7 @@ template.innerHTML = `
 
 export class MySelect extends HTMLElement {
   static get observedAttributes() {
-    return ['label', 'placeholder', 'value', 'size', 'disabled', 'required', 'error', 'help-text', 'clearable', 'block', 'name', 'multiple', 'searchable', 'loading', 'remote', 'has-more'];
+    return ['label', 'placeholder', 'value', 'size', 'disabled', 'required', 'error', 'help-text', 'clearable', 'block', 'name', 'multiple', 'searchable', 'loading', 'remote', 'has-more', 'load-error'];
   }
 
   constructor() {
@@ -368,6 +435,9 @@ export class MySelect extends HTMLElement {
     this._dropdown = this._shadowRoot.querySelector('.dropdown');
     this._searchInput = this._shadowRoot.querySelector('.search-input');
     this._loadingStateEl = this._shadowRoot.querySelector('.loading-state');
+    this._loadErrorEl = this._shadowRoot.querySelector('.load-error');
+    this._loadErrorMessageEl = this._shadowRoot.querySelector('.load-error .error-message');
+    this._retryBtn = this._shadowRoot.querySelector('.load-error .retry-btn');
     this._emptyStateEl = this._shadowRoot.querySelector('.empty-state');
     this._optionsListEl = this._shadowRoot.querySelector('.options-list');
     this._clearBtn = this._shadowRoot.querySelector('.clear-btn');
@@ -376,9 +446,12 @@ export class MySelect extends HTMLElement {
     this._loadMoreHint = this._shadowRoot.querySelector('.load-more-hint');
     this._options = [];
     this._selectedValues = [];
+    this._selectedOptionsCache = new Map();
     this._optionEls = [];
     this._focusedIndex = -1;
     this._isOpen = false;
+    this._isFetching = false;
+    this._isLoadingMore = false;
     this._fetchTimer = null;
     this._currentPage = 1;
     this._scrollBound = false;
@@ -388,6 +461,7 @@ export class MySelect extends HTMLElement {
     this._handleSearchInput = this._handleSearchInput.bind(this);
     this._handleSearchKeydown = this._handleSearchKeydown.bind(this);
     this._handleScroll = this._handleScroll.bind(this);
+    this._handleRetry = this._handleRetry.bind(this);
     this._slotObserver = null;
   }
 
@@ -397,6 +471,7 @@ export class MySelect extends HTMLElement {
     this._clearBtn.addEventListener('click', this._onClear.bind(this));
     this._searchInput.addEventListener('input', this._handleSearchInput);
     this._searchInput.addEventListener('keydown', this._handleSearchKeydown);
+    this._retryBtn.addEventListener('click', this._handleRetry);
     document.addEventListener('mousedown', this._handleOutsideClick);
 
     this._slotObserver = new MutationObserver(() => this._syncOptions());
@@ -412,6 +487,7 @@ export class MySelect extends HTMLElement {
     this._clearBtn.removeEventListener('click', this._onClear);
     this._searchInput.removeEventListener('input', this._handleSearchInput);
     this._searchInput.removeEventListener('keydown', this._handleSearchKeydown);
+    this._retryBtn.removeEventListener('click', this._handleRetry);
     document.removeEventListener('mousedown', this._handleOutsideClick);
     if (this._dropdown && this._scrollBound) {
       this._dropdown.removeEventListener('scroll', this._handleScroll);
@@ -429,11 +505,25 @@ export class MySelect extends HTMLElement {
       if (name === 'loading') {
         this._renderEmptyState();
       }
+      if (name === 'load-error') {
+        this._renderEmptyState();
+      }
       if (name === 'has-more') {
-        this._renderLoadMoreHint();
+        this._renderLoadHint();
+      }
+      if (name === 'remote') {
+        this._updateSearchPlaceholder();
       }
       this._render();
     }
+  }
+
+  _getLabel(value) {
+    const opt = this._options.find(o => o.value === value);
+    if (opt) return opt.label;
+    const cached = this._selectedOptionsCache.get(value);
+    if (cached) return cached.label;
+    return value;
   }
 
   _syncOptions() {
@@ -445,15 +535,21 @@ export class MySelect extends HTMLElement {
       element: el
     }));
 
+    this._options.forEach(opt => {
+      if (this._selectedOptionsCache.has(opt.value)) {
+        const cached = this._selectedOptionsCache.get(opt.value);
+        cached.label = opt.label;
+        cached.disabled = opt.disabled;
+      }
+    });
+
     if (this.multiple) {
       this._syncSelectedValues();
     } else {
       if (this.value !== null && this.value !== undefined && this.value !== '') {
-        const selected = this._options.find(o => o.value === this.value);
-        if (selected) {
-          this._valueText.textContent = selected.label;
-          this._valueText.classList.remove('placeholder');
-        }
+        const label = this._getLabel(this.value);
+        this._valueText.textContent = label;
+        this._valueText.classList.remove('placeholder');
       }
     }
 
@@ -499,6 +595,7 @@ export class MySelect extends HTMLElement {
       if (!opt.disabled) {
         li.addEventListener('click', (e) => {
           e.stopPropagation();
+          if (this._isFetching) return;
           this._selectOption(opt.value, opt.label);
         });
       }
@@ -507,17 +604,36 @@ export class MySelect extends HTMLElement {
     });
 
     this._renderEmptyState();
-    this._renderLoadMoreHint();
+    this._renderLoadHint();
   }
 
   _renderEmptyState() {
     const searchKeyword = this.searchable ? this._searchInput.value.toLowerCase() : '';
 
+    if (this.loadError) {
+      this._loadingStateEl.style.display = 'none';
+      this._loadErrorEl.style.display = 'flex';
+      const msg = this.loadError && this.loadError !== '' ? this.loadError : '加载失败';
+      this._loadErrorMessageEl.textContent = msg;
+      this._emptyStateEl.style.display = 'none';
+      this._optionsListEl.style.display = 'block';
+      this._optionsListEl.classList.remove('loading');
+      this._optionsListEl.classList.remove('fetching');
+      return;
+    }
+
+    this._loadErrorEl.style.display = 'none';
+
     if (this.remote && this.loading) {
-      this._loadingStateEl.style.display = 'flex';
+      this._loadingStateEl.style.display = 'none';
       this._emptyStateEl.style.display = 'none';
       this._optionsListEl.style.display = 'block';
       this._optionsListEl.classList.add('loading');
+      if (this._isFetching) {
+        this._optionsListEl.classList.add('fetching');
+      } else {
+        this._optionsListEl.classList.remove('fetching');
+      }
       return;
     }
 
@@ -526,11 +642,13 @@ export class MySelect extends HTMLElement {
       this._emptyStateEl.style.display = 'none';
       this._optionsListEl.style.display = 'none';
       this._optionsListEl.classList.remove('loading');
+      this._optionsListEl.classList.remove('fetching');
       return;
     }
 
     this._loadingStateEl.style.display = 'none';
     this._optionsListEl.classList.remove('loading');
+    this._optionsListEl.classList.remove('fetching');
 
     if (this._options.length === 0) {
       this._emptyStateEl.style.display = 'block';
@@ -553,17 +671,42 @@ export class MySelect extends HTMLElement {
     this._optionsListEl.style.display = 'block';
   }
 
-  _renderLoadMoreHint() {
-    if (this.hasMore && this._isOpen && this._options.length > 0) {
+  _renderLoadHint() {
+    if (this._isLoadingMore) {
+      this._loadMoreHint.style.display = 'flex';
+      this._loadMoreHint.classList.add('loading-more');
+      this._loadMoreHint.innerHTML = '<span class="loading-spinner-sm"></span><span>加载更多中...</span>';
+      return;
+    }
+
+    this._loadMoreHint.classList.remove('loading-more');
+    this._loadMoreHint.innerHTML = '滚动加载更多';
+
+    if (this.hasMore && this._isOpen && !this.loading && this._options.length > 0) {
       this._loadMoreHint.style.display = 'block';
     } else {
       this._loadMoreHint.style.display = 'none';
     }
   }
 
+  _renderLoadMoreHint() {
+    this._renderLoadHint();
+  }
+
+  _updateSearchPlaceholder() {
+    if (this.remote && this.searchable) {
+      this._searchInput.placeholder = '搜索后按回车查询...';
+    } else {
+      this._searchInput.placeholder = '搜索...';
+    }
+  }
+
   _dispatchFetchOptions(resetPage = true) {
     if (resetPage) {
       this._currentPage = 1;
+    }
+    if (this.remote) {
+      this._isFetching = true;
     }
     this.loading = true;
     const keyword = this.searchable ? this._searchInput.value : '';
@@ -576,7 +719,9 @@ export class MySelect extends HTMLElement {
 
   _dispatchLoadMore() {
     this._currentPage += 1;
+    this._isLoadingMore = true;
     this.loading = true;
+    this._renderLoadHint();
     const keyword = this.searchable ? this._searchInput.value : '';
     this.dispatchEvent(new CustomEvent('load-more', {
       bubbles: true,
@@ -585,11 +730,31 @@ export class MySelect extends HTMLElement {
     }));
   }
 
+  _handleRetry(e) {
+    e.stopPropagation();
+    this.removeAttribute('load-error');
+    this._dispatchFetchOptions(true);
+  }
+
+  setLoadingError(message) {
+    this._isFetching = false;
+    this._isLoadingMore = false;
+    this.loading = false;
+    if (message && message !== '') {
+      this.setAttribute('load-error', message);
+    } else {
+      this.setAttribute('load-error', '');
+    }
+  }
+
   setOptions(options) {
     this.clearOptions();
     if (!options || !options.length) {
       this._syncOptions();
+      this._isFetching = false;
+      this._isLoadingMore = false;
       this.loading = false;
+      this._renderLoadHint();
       return;
     }
     const html = options.map(opt => {
@@ -601,12 +766,40 @@ export class MySelect extends HTMLElement {
     }).join('');
     this.insertAdjacentHTML('beforeend', html);
     this._syncOptions();
+
+    options.forEach(opt => {
+      const val = String(opt.value);
+      if (this.multiple && this._selectedValues.includes(val)) {
+        if (!this._selectedOptionsCache.has(val)) {
+          this._selectedOptionsCache.set(val, { value: val, label: opt.label, disabled: !!opt.disabled });
+        } else {
+          const cached = this._selectedOptionsCache.get(val);
+          cached.label = opt.label;
+          cached.disabled = !!opt.disabled;
+        }
+      } else if (!this.multiple && this.value === val) {
+        if (!this._selectedOptionsCache.has(val)) {
+          this._selectedOptionsCache.set(val, { value: val, label: opt.label, disabled: !!opt.disabled });
+        } else {
+          const cached = this._selectedOptionsCache.get(val);
+          cached.label = opt.label;
+          cached.disabled = !!opt.disabled;
+        }
+      }
+    });
+
+    this._isFetching = false;
+    this._isLoadingMore = false;
     this.loading = false;
+    this._renderLoadHint();
   }
 
   appendOptions(options) {
     if (!options || !options.length) {
+      this._isFetching = false;
+      this._isLoadingMore = false;
       this.loading = false;
+      this._renderLoadHint();
       return;
     }
     const html = options.map(opt => {
@@ -618,7 +811,32 @@ export class MySelect extends HTMLElement {
     }).join('');
     this.insertAdjacentHTML('beforeend', html);
     this._syncOptions();
+
+    options.forEach(opt => {
+      const val = String(opt.value);
+      if (this.multiple && this._selectedValues.includes(val)) {
+        if (!this._selectedOptionsCache.has(val)) {
+          this._selectedOptionsCache.set(val, { value: val, label: opt.label, disabled: !!opt.disabled });
+        } else {
+          const cached = this._selectedOptionsCache.get(val);
+          cached.label = opt.label;
+          cached.disabled = !!opt.disabled;
+        }
+      } else if (!this.multiple && this.value === val) {
+        if (!this._selectedOptionsCache.has(val)) {
+          this._selectedOptionsCache.set(val, { value: val, label: opt.label, disabled: !!opt.disabled });
+        } else {
+          const cached = this._selectedOptionsCache.get(val);
+          cached.label = opt.label;
+          cached.disabled = !!opt.disabled;
+        }
+      }
+    });
+
+    this._isFetching = false;
+    this._isLoadingMore = false;
     this.loading = false;
+    this._renderLoadHint();
   }
 
   clearOptions() {
@@ -629,21 +847,25 @@ export class MySelect extends HTMLElement {
   }
 
   _selectOption(value, label) {
+    if (this._isFetching) return;
+
+    const val = String(value);
+    const lbl = label || this._getLabel(val);
+
+    this._selectedOptionsCache.set(val, { value: val, label: lbl, disabled: false });
+
     if (this.multiple) {
-      const idx = this._selectedValues.indexOf(value);
+      const idx = this._selectedValues.indexOf(val);
       if (idx >= 0) {
         this._selectedValues.splice(idx, 1);
       } else {
-        this._selectedValues.push(value);
+        this._selectedValues.push(val);
       }
       const newValue = this._selectedValues.join(',');
       this.setAttribute('value', newValue);
       this._updateTags();
       this._updateOptionSelectedStates();
-      const labels = this._selectedValues.map(v => {
-        const opt = this._options.find(o => o.value === v);
-        return opt ? opt.label : v;
-      });
+      const labels = this._selectedValues.map(v => this._getLabel(v));
       this.dispatchEvent(new CustomEvent('change', {
         bubbles: true,
         composed: true,
@@ -659,15 +881,15 @@ export class MySelect extends HTMLElement {
         detail: { valid: isSatisfied }
       }));
     } else {
-      this.value = value;
-      this._valueText.textContent = label;
+      this.value = val;
+      this._valueText.textContent = lbl;
       this._valueText.classList.remove('placeholder');
       this._updateOptionSelectedStates();
       this.close();
       this.dispatchEvent(new CustomEvent('change', {
         bubbles: true,
         composed: true,
-        detail: { value, label }
+        detail: { value: val, label: lbl }
       }));
 
       this.resetValidation();
@@ -713,11 +935,10 @@ export class MySelect extends HTMLElement {
     this._valueText.style.display = 'none';
     this._tagsContainer.style.display = 'flex';
     this._selectedValues.forEach(val => {
-      const opt = this._options.find(o => o.value === val);
-      if (!opt) return;
+      const label = this._getLabel(val);
       const tag = document.createElement('span');
       tag.className = 'tag';
-      tag.textContent = opt.label;
+      tag.textContent = label;
       const remove = document.createElement('span');
       remove.className = 'tag-remove';
       remove.textContent = '\u00d7';
@@ -739,10 +960,7 @@ export class MySelect extends HTMLElement {
     this.setAttribute('value', newValue);
     this._updateTags();
     this._updateOptionSelectedStates();
-    const labels = this._selectedValues.map(v => {
-      const opt = this._options.find(o => o.value === v);
-      return opt ? opt.label : v;
-    });
+    const labels = this._selectedValues.map(v => this._getLabel(v));
     this.dispatchEvent(new CustomEvent('change', {
       bubbles: true,
       composed: true,
@@ -838,6 +1056,7 @@ export class MySelect extends HTMLElement {
       case ' ':
         e.preventDefault();
         if (this._isOpen) {
+          if (this._isFetching) break;
           if (this._focusedIndex >= 0) {
             const visible = this._getVisibleOptions();
             if (visible[this._focusedIndex]) {
@@ -858,11 +1077,15 @@ export class MySelect extends HTMLElement {
       case 'ArrowDown':
         e.preventDefault();
         if (!this._isOpen) this.open();
-        this._moveFocus(1);
+        if (!this._isFetching) {
+          this._moveFocus(1);
+        }
         break;
       case 'ArrowUp':
         e.preventDefault();
-        if (this._isOpen) this._moveFocus(-1);
+        if (this._isOpen && !this._isFetching) {
+          this._moveFocus(-1);
+        }
         break;
       case 'Backspace':
         if (this.multiple && this._selectedValues.length > 0) {
@@ -907,6 +1130,7 @@ export class MySelect extends HTMLElement {
       case 'Enter':
         e.preventDefault();
         e.stopPropagation();
+        if (this._isFetching) break;
         if (this._focusedIndex >= 0) {
           const visible = this._getVisibleOptions();
           if (visible[this._focusedIndex]) {
@@ -935,11 +1159,15 @@ export class MySelect extends HTMLElement {
         break;
       case 'ArrowDown':
         e.preventDefault();
-        this._moveFocus(1);
+        if (!this._isFetching) {
+          this._moveFocus(1);
+        }
         break;
       case 'ArrowUp':
         e.preventDefault();
-        this._moveFocus(-1);
+        if (!this._isFetching) {
+          this._moveFocus(-1);
+        }
         break;
     }
   }
@@ -988,6 +1216,7 @@ export class MySelect extends HTMLElement {
     requestAnimationFrame(() => {
       this._dropdown.classList.add('open');
       if (this.searchable) {
+        this._updateSearchPlaceholder();
         this._searchInput.style.display = 'block';
         this._searchInput.focus();
       }
@@ -999,7 +1228,7 @@ export class MySelect extends HTMLElement {
     }
 
     this._renderEmptyState();
-    this._renderLoadMoreHint();
+    this._renderLoadHint();
     this.dispatchEvent(new CustomEvent('open', { bubbles: true, composed: true }));
   }
 
@@ -1023,7 +1252,7 @@ export class MySelect extends HTMLElement {
       li.style.display = '';
       li.classList.remove('focused');
     });
-    this._renderLoadMoreHint();
+    this._renderLoadHint();
     this.dispatchEvent(new CustomEvent('close', { bubbles: true, composed: true }));
   }
 
@@ -1038,14 +1267,10 @@ export class MySelect extends HTMLElement {
 
   getSelectedLabels() {
     if (this.multiple) {
-      return this._selectedValues.map(v => {
-        const opt = this._options.find(o => o.value === v);
-        return opt ? opt.label : v;
-      });
+      return this._selectedValues.map(v => this._getLabel(v));
     } else {
       if (!this.value || this.value === '') return [];
-      const opt = this._options.find(o => o.value === this.value);
-      return opt ? [opt.label] : [this.value];
+      return [this._getLabel(this.value)];
     }
   }
 
@@ -1053,16 +1278,26 @@ export class MySelect extends HTMLElement {
     if (this.multiple) {
       return this._selectedValues.map(v => {
         const opt = this._options.find(o => o.value === v);
-        return opt
-          ? { value: opt.value, label: opt.label, disabled: opt.disabled }
-          : { value: v, label: v, disabled: false };
+        if (opt) {
+          return { value: opt.value, label: opt.label, disabled: opt.disabled };
+        }
+        const cached = this._selectedOptionsCache.get(v);
+        if (cached) {
+          return { value: cached.value, label: cached.label, disabled: cached.disabled };
+        }
+        return { value: v, label: v, disabled: false };
       });
     } else {
       if (!this.value || this.value === '') return [];
       const opt = this._options.find(o => o.value === this.value);
-      return opt
-        ? [{ value: opt.value, label: opt.label, disabled: opt.disabled }]
-        : [{ value: this.value, label: this.value, disabled: false }];
+      if (opt) {
+        return [{ value: opt.value, label: opt.label, disabled: opt.disabled }];
+      }
+      const cached = this._selectedOptionsCache.get(this.value);
+      if (cached) {
+        return [{ value: cached.value, label: cached.label, disabled: cached.disabled }];
+      }
+      return [{ value: this.value, label: this.value, disabled: false }];
     }
   }
 
@@ -1195,11 +1430,9 @@ export class MySelect extends HTMLElement {
     } else {
       this.setAttribute('value', val);
       if (this._options.length > 0) {
-        const selected = this._options.find(o => o.value === val);
-        if (selected) {
-          this._valueText.textContent = selected.label;
-          this._valueText.classList.remove('placeholder');
-        }
+        const label = this._getLabel(val);
+        this._valueText.textContent = label;
+        this._valueText.classList.remove('placeholder');
       }
       this._updateOptionSelectedStates();
       this._updateClearBtn();
@@ -1263,6 +1496,9 @@ export class MySelect extends HTMLElement {
 
   get hasMore() { return this.hasAttribute('has-more'); }
   set hasMore(val) { val ? this.setAttribute('has-more', '') : this.removeAttribute('has-more'); }
+
+  get loadError() { return this.getAttribute('load-error'); }
+  set loadError(val) { val !== null && val !== undefined ? this.setAttribute('load-error', val) : this.removeAttribute('load-error'); }
 }
 
 customElements.define('my-select', MySelect);

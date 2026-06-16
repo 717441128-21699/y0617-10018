@@ -96,6 +96,31 @@ export interface FormSubmitSummary {
   invalidFields: string[];
   errors: { [name: string]: string };
   changedFields?: string[];
+  submittedFields?: string[];
+  unmodifiedFields?: string[];
+  isSubmissionEmpty?: boolean;
+}
+
+export type AsyncValidator = (value: any, formData: Record<string, any>) =>
+  Promise<{ valid: boolean; message?: string } | string | void>;
+
+export interface ValidateOptions {
+  async?: boolean;
+}
+
+export interface ValidationCompleteDetail {
+  valid: boolean;
+  results: FieldValidateResult[];
+  mode: 'sync' | 'async';
+}
+
+export interface SubmitEmptyDetail {
+  formData: Record<string, any>;
+  summary: FormSubmitSummary;
+}
+
+export interface SubmitOptions {
+  async?: boolean;
 }
 
 export interface ChangedFieldDetail {
@@ -203,6 +228,7 @@ export interface MySelectElement extends HTMLElement {
   multiple: boolean;
   remote: boolean;
   hasMore: boolean;
+  loadError: string | null;
   block: boolean;
   name: string | null;
   loading: boolean;
@@ -218,6 +244,7 @@ export interface MySelectElement extends HTMLElement {
   setOptions(options: OptionObject[]): void;
   appendOptions(options: OptionObject[]): void;
   clearOptions(): void;
+  setLoadingError(message?: string): void;
   addEventListener<K extends keyof HTMLElementEventMap>(type: K, listener: (ev: HTMLElementEventMap[K]) => void, options?: boolean | AddEventListenerOptions): void;
   addEventListener(type: 'change', listener: (ev: CustomEvent<SelectChangeDetail>) => void, options?: boolean | AddEventListenerOptions): void;
   addEventListener(type: 'open' | 'close' | 'clear', listener: (ev: CustomEvent) => void, options?: boolean | AddEventListenerOptions): void;
@@ -255,18 +282,26 @@ export interface MyToastElement extends HTMLElement {
 export interface MyFormElement extends HTMLElement {
   disabled: boolean;
   loading: boolean;
+  readonly validating: boolean;
   readonly isDirty: boolean;
   submitChangesOnly: boolean;
+  commitOnSuccess: boolean;
+  warnOnLeave: boolean;
   validate(): FormValidateResult;
+  validate(mode: 'async' | { async: boolean }): Promise<FormValidateResult>;
+  validateField(name: string): Promise<FieldValidateResult>;
   reset(): void;
   clear(): void;
   resetValidation(): void;
-  submit(callback?: (formData: Record<string, any>) => Promise<any> | void): FormSubmitDetail & { results: FieldValidateResult[]; summary: FormSubmitSummary };
+  submit(callback?: (formData: Record<string, any>) => Promise<any> | void, options?: SubmitOptions):
+    FormSubmitDetail & { results: FieldValidateResult[]; summary: FormSubmitSummary };
   getFormData(): Record<string, any>;
   setFieldValue(name: string, value: any): void;
   getFieldValue(name: string): any;
   setFieldError(name: string, error: string | null): void;
+  setAsyncValidator(name: string, validator: AsyncValidator | null): void;
   setInitialValues(values: Record<string, any>): void;
+  commitValues(): void;
   getDirtyFields(): string[];
   getChangedValues(): ChangedValues;
   addEventListener<K extends keyof HTMLElementEventMap>(type: K, listener: (ev: HTMLElementEventMap[K]) => void, options?: boolean | AddEventListenerOptions): void;
@@ -274,8 +309,10 @@ export interface MyFormElement extends HTMLElement {
   addEventListener(type: 'valid-submit', listener: (ev: CustomEvent<FormValidSubmitDetail>) => void, options?: boolean | AddEventListenerOptions): void;
   addEventListener(type: 'submit-success', listener: (ev: CustomEvent<FormSubmitSuccessDetail>) => void, options?: boolean | AddEventListenerOptions): void;
   addEventListener(type: 'submit-error', listener: (ev: CustomEvent<FormSubmitErrorDetail>) => void, options?: boolean | AddEventListenerOptions): void;
+  addEventListener(type: 'submit-empty', listener: (ev: CustomEvent<SubmitEmptyDetail>) => void, options?: boolean | AddEventListenerOptions): void;
   addEventListener(type: 'validation-change', listener: (ev: CustomEvent) => void, options?: boolean | AddEventListenerOptions): void;
   addEventListener(type: 'validate' | 'reset', listener: (ev: CustomEvent) => void, options?: boolean | AddEventListenerOptions): void;
+  addEventListener(type: 'validation-complete', listener: (ev: CustomEvent<ValidationCompleteDetail>) => void, options?: boolean | AddEventListenerOptions): void;
   addEventListener(type: 'submit-changed', listener: (ev: CustomEvent<SubmitChangedDetail>) => void, options?: boolean | AddEventListenerOptions): void;
   addEventListener(type: 'validation-cleared', listener: (ev: CustomEvent<ValidationClearedDetail>) => void, options?: boolean | AddEventListenerOptions): void;
 }
