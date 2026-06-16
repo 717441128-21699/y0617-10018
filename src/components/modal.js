@@ -127,6 +127,25 @@ template.innerHTML = `
 :host([hide-header]) .dialog-header { display: none; }
 :host([hide-footer]) .dialog-footer { display: none; }
 :host([hide-close]) .close-btn { display: none; }
+
+.confirm-btn[loading] {
+  opacity: 0.8;
+  pointer-events: none;
+}
+.confirm-btn[loading] .btn-loading {
+  display: inline-block;
+}
+.btn-loading {
+  display: none;
+  width: 1em;
+  height: 1em;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  margin-right: 6px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
 </style>
 <div class="overlay" part="overlay"></div>
 <div class="dialog-wrapper" role="dialog" aria-modal="true" part="dialog-wrapper">
@@ -146,7 +165,7 @@ template.innerHTML = `
     <div class="dialog-footer">
       <slot name="footer">
         <my-button variant="secondary" class="cancel-btn">取消</my-button>
-        <my-button variant="primary" class="confirm-btn">确定</my-button>
+        <my-button variant="primary" class="confirm-btn"><span class="btn-loading"></span>确定</my-button>
       </slot>
     </div>
   </div>
@@ -155,7 +174,7 @@ template.innerHTML = `
 
 export class MyModal extends HTMLElement {
   static get observedAttributes() {
-    return ['open', 'size', 'title', 'hide-header', 'hide-footer', 'hide-close', 'mask-closable', 'esc-closable'];
+    return ['open', 'size', 'title', 'hide-header', 'hide-footer', 'hide-close', 'mask-closable', 'esc-closable', 'loading', 'name'];
   }
 
   constructor() {
@@ -194,6 +213,9 @@ export class MyModal extends HTMLElement {
     if (!this._dialog) return;
     if (name === 'open') {
       this.open ? this._applyOpen() : this._applyClose();
+    }
+    if (name === 'loading') {
+      this._syncLoadingState();
     }
     this._render();
   }
@@ -265,7 +287,6 @@ export class MyModal extends HTMLElement {
     this.dispatchEvent(event);
     if (event.defaultPrevented) return;
     this.open = false;
-    this.removeAttribute('open');
     this.dispatchEvent(new CustomEvent('close', {
       bubbles: true,
       composed: true,
@@ -281,8 +302,7 @@ export class MyModal extends HTMLElement {
     });
     this.dispatchEvent(event);
     if (event.defaultPrevented) return;
-    this.open = false;
-    this.removeAttribute('open');
+    this._onClose('confirm');
   }
 
   _applyOpen() {
@@ -314,8 +334,74 @@ export class MyModal extends HTMLElement {
     if (this.title) this._dialog.setAttribute('aria-label', this.title);
   }
 
+  _syncLoadingState() {
+    const confirmBtn = this._shadowRoot.querySelector('.confirm-btn');
+    if (!confirmBtn) return;
+    if (this.loading) {
+      confirmBtn.setAttribute('loading', '');
+      confirmBtn.setAttribute('disabled', '');
+    } else {
+      confirmBtn.removeAttribute('loading');
+      confirmBtn.removeAttribute('disabled');
+    }
+  }
+
   show() { this.open = true; this.setAttribute('open', ''); }
-  hide() { this.open = false; this.removeAttribute('open'); this._onClose('api'); }
+  hide() { this._onClose('api'); }
+
+  static confirm(options = {}) {
+    const {
+      title = '确认',
+      content = '',
+      confirmText = '确定',
+      cancelText = '取消',
+      variant = 'primary',
+      size = 'sm'
+    } = options;
+
+    return new Promise((resolve) => {
+      const modal = document.createElement('my-modal');
+      modal.setAttribute('size', size);
+      if (title) modal.setAttribute('title', title);
+
+      if (content) {
+        modal.innerHTML = content;
+      }
+
+      const footer = document.createElement('div');
+      footer.setAttribute('slot', 'footer');
+
+      const cancelBtnEl = document.createElement('my-button');
+      cancelBtnEl.setAttribute('variant', 'secondary');
+      cancelBtnEl.className = 'cancel-btn';
+      cancelBtnEl.textContent = cancelText;
+
+      const confirmBtnEl = document.createElement('my-button');
+      confirmBtnEl.setAttribute('variant', variant);
+      confirmBtnEl.className = 'confirm-btn';
+      confirmBtnEl.textContent = confirmText;
+
+      footer.appendChild(cancelBtnEl);
+      footer.appendChild(confirmBtnEl);
+      modal.appendChild(footer);
+
+      confirmBtnEl.addEventListener('click', () => {
+        modal._onClose('confirm');
+      });
+
+      cancelBtnEl.addEventListener('click', () => {
+        modal._onClose('cancel');
+      });
+
+      modal.addEventListener('close', (e) => {
+        resolve(e.detail.reason === 'confirm');
+        modal.remove();
+      }, { once: true });
+
+      document.body.appendChild(modal);
+      modal.show();
+    });
+  }
 
   get open() { return this.hasAttribute('open'); }
   set open(val) { val ? this.setAttribute('open', '') : this.removeAttribute('open'); }
@@ -331,6 +417,12 @@ export class MyModal extends HTMLElement {
 
   get escClosable() { return this.getAttribute('esc-closable') !== 'false'; }
   set escClosable(val) { this.setAttribute('esc-closable', String(val)); }
+
+  get loading() { return this.hasAttribute('loading'); }
+  set loading(val) { val ? this.setAttribute('loading', '') : this.removeAttribute('loading'); }
+
+  get name() { return this.getAttribute('name'); }
+  set name(val) { this.setAttribute('name', val); }
 }
 
 customElements.define('my-modal', MyModal);

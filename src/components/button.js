@@ -221,12 +221,6 @@ export class MyButton extends HTMLElement {
       e.stopPropagation();
       return;
     }
-    this.dispatchEvent(new CustomEvent('click', {
-      bubbles: true,
-      composed: true,
-      cancelable: true,
-      detail: { originalEvent: e }
-    }));
   }
 
   _render() {

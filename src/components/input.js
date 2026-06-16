@@ -183,9 +183,31 @@ template.innerHTML = `
 </div>
 `;
 
+const RULE_MESSAGES = {
+  required: '此项为必填',
+  email: '请输入有效的邮箱地址',
+  url: '请输入有效的URL',
+  number: '请输入有效的数字',
+  pattern: '格式不正确',
+};
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const URL_REGEX = /^https?:\/\/.+/i;
+
+function parseRules(rulesStr) {
+  if (!rulesStr) return [];
+  return rulesStr.split('|').map(segment => {
+    const colonIdx = segment.indexOf(':');
+    if (colonIdx === -1) return { name: segment, param: null };
+    const name = segment.substring(0, colonIdx);
+    const param = segment.substring(colonIdx + 1);
+    return { name, param };
+  });
+}
+
 export class MyInput extends HTMLElement {
   static get observedAttributes() {
-    return ['label', 'placeholder', 'type', 'value', 'size', 'disabled', 'readonly', 'required', 'error', 'help-text', 'clearable', 'maxlength', 'min', 'max', 'step', 'block'];
+    return ['label', 'placeholder', 'type', 'value', 'size', 'disabled', 'readonly', 'required', 'error', 'help-text', 'clearable', 'maxlength', 'min', 'max', 'step', 'block', 'rules', 'pattern', 'name', 'validate-trigger', 'minlength'];
   }
 
   constructor() {
@@ -204,15 +226,20 @@ export class MyInput extends HTMLElement {
     this._helpText = this._shadowRoot.querySelector('.help-text');
     this._errorText = this._shadowRoot.querySelector('.error-text');
     this._oldValue = '';
+    this._parsedRules = [];
+    this._initialValue = '';
+    this._onBlurBound = this._onBlur.bind(this);
   }
 
   connectedCallback() {
     this._input.addEventListener('input', this._onInput.bind(this));
     this._input.addEventListener('focus', this._onFocus.bind(this));
-    this._input.addEventListener('blur', this._onBlur.bind(this));
+    this._input.addEventListener('blur', this._onBlurBound);
     this._input.addEventListener('change', this._onChange.bind(this));
     this._input.addEventListener('keydown', this._onKeydown.bind(this));
     this._clearBtn.addEventListener('click', this._onClear.bind(this));
+    this._initialValue = this.value;
+    this._parseAndStoreRules();
     this._render();
     this._updateSlots();
 
@@ -223,14 +250,21 @@ export class MyInput extends HTMLElement {
   disconnectedCallback() {
     this._input.removeEventListener('input', this._onInput);
     this._input.removeEventListener('focus', this._onFocus);
-    this._input.removeEventListener('blur', this._onBlur);
+    this._input.removeEventListener('blur', this._onBlurBound);
     this._input.removeEventListener('change', this._onChange);
     this._input.removeEventListener('keydown', this._onKeydown);
     this._clearBtn.removeEventListener('click', this._onClear);
   }
 
-  attributeChangedCallback() {
+  attributeChangedCallback(name) {
+    if (name === 'rules') {
+      this._parseAndStoreRules();
+    }
     if (this._input) this._render();
+  }
+
+  _parseAndStoreRules() {
+    this._parsedRules = parseRules(this.rules);
   }
 
   _updateSlots() {
@@ -274,6 +308,10 @@ export class MyInput extends HTMLElement {
       bubbles: true,
       composed: true
     }));
+    const trigger = this.getAttribute('validate-trigger') || 'blur';
+    if (trigger !== 'none' && this._parsedRules.length > 0) {
+      this.validate();
+    }
   }
 
   _onKeydown(e) {
@@ -313,6 +351,111 @@ export class MyInput extends HTMLElement {
     }
   }
 
+  validate() {
+    const value = this.value;
+    const rules = this._parsedRules;
+
+    for (const rule of rules) {
+      const result = this._validateRule(rule, value);
+      if (!result.valid) {
+        this.error = result.message;
+        return result;
+      }
+    }
+
+    if (this.pattern) {
+      try {
+        const regex = new RegExp(this.pattern);
+        if (!regex.test(value)) {
+          this.error = RULE_MESSAGES.pattern;
+          return { valid: false, message: RULE_MESSAGES.pattern };
+        }
+      } catch (e) {
+        // invalid regex, skip
+      }
+    }
+
+    this.removeAttribute('error');
+    return { valid: true, message: '' };
+  }
+
+  _validateRule(rule, value) {
+    switch (rule.name) {
+      case 'required':
+        if (!value || !value.trim()) {
+          return { valid: false, message: RULE_MESSAGES.required };
+        }
+        break;
+
+      case 'email':
+        if (value && !EMAIL_REGEX.test(value)) {
+          return { valid: false, message: RULE_MESSAGES.email };
+        }
+        break;
+
+      case 'url':
+        if (value && !URL_REGEX.test(value)) {
+          return { valid: false, message: RULE_MESSAGES.url };
+        }
+        break;
+
+      case 'number':
+        if (value && isNaN(Number(value))) {
+          return { valid: false, message: RULE_MESSAGES.number };
+        }
+        break;
+
+      case 'min': {
+        const n = parseInt(rule.param, 10);
+        if (value.length < n) {
+          return { valid: false, message: `最少输入${n}个字符` };
+        }
+        break;
+      }
+
+      case 'max': {
+        const n = parseInt(rule.param, 10);
+        if (value.length > n) {
+          return { valid: false, message: `最多输入${n}个字符` };
+        }
+        break;
+      }
+
+      case 'minlength': {
+        const n = parseInt(rule.param, 10);
+        if (value.length < n) {
+          return { valid: false, message: `最少输入${n}个字符` };
+        }
+        break;
+      }
+
+      case 'pattern': {
+        if (rule.param) {
+          try {
+            const regex = new RegExp(rule.param);
+            if (!regex.test(value)) {
+              return { valid: false, message: RULE_MESSAGES.pattern };
+            }
+          } catch (e) {
+            // invalid regex, skip
+          }
+        }
+        break;
+      }
+    }
+
+    return { valid: true, message: '' };
+  }
+
+  resetValidation() {
+    this.removeAttribute('error');
+  }
+
+  reset() {
+    this.value = this._initialValue;
+    this.resetValidation();
+  }
+
   _render() {
     this._labelText.textContent = this.label;
     this._labelEl.style.display = this.label ? 'block' : 'none';
@@ -330,6 +473,7 @@ export class MyInput extends HTMLElement {
     this._input.readOnly = this.readonly;
     this._input.required = this.required;
     if (this.maxlength) this._input.maxLength = parseInt(this.maxlength);
+    if (this.minlength) this._input.minLength = parseInt(this.minlength);
     if (this.hasAttribute('value') && this._input.value !== this.value) {
       this._input.value = this.value || '';
     }
@@ -402,6 +546,18 @@ export class MyInput extends HTMLElement {
 
   get block() { return this.hasAttribute('block'); }
   set block(val) { val ? this.setAttribute('block', '') : this.removeAttribute('block'); }
+
+  get rules() { return this.getAttribute('rules'); }
+  set rules(val) { this.setAttribute('rules', val); }
+
+  get pattern() { return this.getAttribute('pattern'); }
+  set pattern(val) { this.setAttribute('pattern', val); }
+
+  get name() { return this.getAttribute('name'); }
+  set name(val) { this.setAttribute('name', val); }
+
+  get minlength() { return this.getAttribute('minlength'); }
+  set minlength(val) { this.setAttribute('minlength', val); }
 }
 
 customElements.define('my-input', MyInput);

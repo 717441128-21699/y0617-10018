@@ -5,7 +5,13 @@ export type RoundedType = 'default' | 'full';
 export type InputType = 'text' | 'password' | 'email' | 'number' | 'tel' | 'url' | 'search' | 'date';
 export type ToastType = 'success' | 'warning' | 'error' | 'info';
 export type ModalSize = 'sm' | 'md' | 'lg' | 'xl' | 'full';
-export type CloseReason = 'close' | 'cancel' | 'mask' | 'esc' | 'api';
+export type CloseReason = 'close' | 'cancel' | 'mask' | 'esc' | 'api' | 'confirm';
+export type ValidateTrigger = 'blur' | 'none';
+
+export interface ValidationResult {
+  valid: boolean;
+  message: string;
+}
 
 export interface ButtonClickDetail {
   originalEvent: MouseEvent;
@@ -22,7 +28,9 @@ export interface InputKeydownDetail {
 
 export interface SelectChangeDetail {
   value: string;
-  label: string;
+  values?: string[];
+  labels?: string[];
+  label?: string;
 }
 
 export interface ModalCloseDetail {
@@ -33,11 +41,40 @@ export interface ModalBeforeCloseDetail {
   reason: CloseReason;
 }
 
+export interface ModalConfirmOptions {
+  title?: string;
+  content?: string;
+  confirmText?: string;
+  cancelText?: string;
+  variant?: 'primary' | 'danger';
+  size?: ModalSize;
+}
+
 export interface ToastOptions {
   message?: string;
   type?: ToastType;
   duration?: number;
   closable?: boolean;
+}
+
+export interface FieldValidateResult extends ValidationResult {
+  field: HTMLElement;
+  name: string;
+}
+
+export interface FormValidateResult {
+  valid: boolean;
+  results: FieldValidateResult[];
+}
+
+export interface FormSubmitDetail {
+  valid: boolean;
+  formData: Record<string, string>;
+  results: FieldValidateResult[];
+}
+
+export interface FormValidSubmitDetail {
+  formData: Record<string, string>;
 }
 
 export interface MyButtonElement extends HTMLElement {
@@ -48,8 +85,6 @@ export interface MyButtonElement extends HTMLElement {
   loading: boolean;
   block: boolean;
   rounded: RoundedType;
-  addEventListener<K extends keyof HTMLElementEventMap>(type: K, listener: (ev: HTMLElementEventMap[K]) => void, options?: boolean | AddEventListenerOptions): void;
-  addEventListener(type: 'click', listener: (ev: CustomEvent<ButtonClickDetail>) => void, options?: boolean | AddEventListenerOptions): void;
 }
 
 export interface MyInputElement extends HTMLElement {
@@ -65,12 +100,20 @@ export interface MyInputElement extends HTMLElement {
   helpText: string | null;
   clearable: boolean;
   maxlength: string | null;
+  minlength: string | null;
   min: string | null;
   max: string | null;
   step: string | null;
   block: boolean;
+  name: string | null;
+  rules: string | null;
+  pattern: string | null;
+  validateTrigger: ValidateTrigger;
   focus(): void;
   blur(): void;
+  validate(): ValidationResult;
+  resetValidation(): void;
+  reset(): void;
   addEventListener<K extends keyof HTMLElementEventMap>(type: K, listener: (ev: HTMLElementEventMap[K]) => void, options?: boolean | AddEventListenerOptions): void;
   addEventListener(type: 'input' | 'change', listener: (ev: CustomEvent<InputEventDetail>) => void, options?: boolean | AddEventListenerOptions): void;
   addEventListener(type: 'focus' | 'blur' | 'clear', listener: (ev: CustomEvent) => void, options?: boolean | AddEventListenerOptions): void;
@@ -86,15 +129,22 @@ export interface MySelectElement extends HTMLElement {
   label: string | null;
   placeholder: string | null;
   value: string;
+  values: string[];
   size: ComponentSize;
   disabled: boolean;
   required: boolean;
   error: string | null;
   helpText: string | null;
   clearable: boolean;
+  searchable: boolean;
+  multiple: boolean;
   block: boolean;
+  name: string | null;
   open(): void;
   close(): void;
+  validate(): ValidationResult;
+  resetValidation(): void;
+  reset(): void;
   addEventListener<K extends keyof HTMLElementEventMap>(type: K, listener: (ev: HTMLElementEventMap[K]) => void, options?: boolean | AddEventListenerOptions): void;
   addEventListener(type: 'change', listener: (ev: CustomEvent<SelectChangeDetail>) => void, options?: boolean | AddEventListenerOptions): void;
   addEventListener(type: 'open' | 'close' | 'clear', listener: (ev: CustomEvent) => void, options?: boolean | AddEventListenerOptions): void;
@@ -104,10 +154,13 @@ export interface MyModalElement extends HTMLElement {
   open: boolean;
   size: ModalSize;
   title: string | null;
+  loading: boolean;
   maskClosable: boolean;
   escClosable: boolean;
+  name: string | null;
   show(): void;
   hide(): void;
+  confirm(options: ModalConfirmOptions): Promise<boolean>;
   addEventListener<K extends keyof HTMLElementEventMap>(type: K, listener: (ev: HTMLElementEventMap[K]) => void, options?: boolean | AddEventListenerOptions): void;
   addEventListener(type: 'confirm', listener: (ev: CustomEvent) => void, options?: boolean | AddEventListenerOptions): void;
   addEventListener(type: 'close' | 'after-close' | 'after-open', listener: (ev: CustomEvent<ModalCloseDetail>) => void, options?: boolean | AddEventListenerOptions): void;
@@ -121,6 +174,20 @@ export interface MyToastElement extends HTMLElement {
   close(): void;
   addEventListener<K extends keyof HTMLElementEventMap>(type: K, listener: (ev: HTMLElementEventMap[K]) => void, options?: boolean | AddEventListenerOptions): void;
   addEventListener(type: 'close' | 'before-close', listener: (ev: CustomEvent) => void, options?: boolean | AddEventListenerOptions): void;
+}
+
+export interface MyFormElement extends HTMLElement {
+  disabled: boolean;
+  loading: boolean;
+  validate(): FormValidateResult;
+  reset(): void;
+  resetValidation(): void;
+  submit(): FormSubmitDetail & { results: FieldValidateResult[] };
+  getFormData(): Record<string, string>;
+  addEventListener<K extends keyof HTMLElementEventMap>(type: K, listener: (ev: HTMLElementEventMap[K]) => void, options?: boolean | AddEventListenerOptions): void;
+  addEventListener(type: 'submit', listener: (ev: CustomEvent<FormSubmitDetail>) => void, options?: boolean | AddEventListenerOptions): void;
+  addEventListener(type: 'valid-submit', listener: (ev: CustomEvent<FormValidSubmitDetail>) => void, options?: boolean | AddEventListenerOptions): void;
+  addEventListener(type: 'validate' | 'reset', listener: (ev: CustomEvent) => void, options?: boolean | AddEventListenerOptions): void;
 }
 
 export interface ShowToast {
@@ -210,6 +277,7 @@ declare global {
     'my-option': MyOptionElement;
     'my-modal': MyModalElement;
     'my-toast': MyToastElement;
+    'my-form': MyFormElement;
   }
 }
 
@@ -236,11 +304,17 @@ export const MyOption: {
 export const MyModal: {
   prototype: MyModalElement;
   new (): MyModalElement;
+  confirm(options: ModalConfirmOptions): Promise<boolean>;
 };
 
 export const MyToast: {
   prototype: MyToastElement;
   new (): MyToastElement;
+};
+
+export const MyForm: {
+  prototype: MyFormElement;
+  new (): MyFormElement;
 };
 
 export const showToast: ShowToast;

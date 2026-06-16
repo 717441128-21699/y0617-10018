@@ -155,6 +155,21 @@ template.innerHTML = `
   to { opacity: 1; transform: translateY(0); }
 }
 
+.search-input {
+  width: 100%;
+  border: 1px solid var(--ui-color-border);
+  border-radius: var(--ui-radius-sm);
+  padding: var(--ui-spacing-xs) var(--ui-spacing-sm);
+  font-size: var(--ui-font-size-sm);
+  outline: none;
+  margin-bottom: var(--ui-spacing-xs);
+  box-sizing: border-box;
+  font-family: inherit;
+}
+.search-input:focus {
+  border-color: var(--ui-color-border-focus);
+}
+
 .option {
   display: flex;
   align-items: center;
@@ -186,6 +201,17 @@ template.innerHTML = `
   background-color: transparent;
 }
 
+.option.focused {
+  background-color: var(--ui-color-bg-tertiary);
+}
+
+.option-check {
+  margin-right: var(--ui-spacing-xs);
+  color: var(--ui-color-primary);
+  font-size: var(--ui-font-size-sm);
+  flex-shrink: 0;
+}
+
 .empty-state {
   padding: var(--ui-spacing-lg);
   text-align: center;
@@ -205,6 +231,39 @@ template.innerHTML = `
   line-height: var(--ui-line-height-normal);
 }
 
+.tags-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: var(--ui-spacing-xs) 0;
+  flex: 1;
+  min-width: 0;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  background: var(--ui-color-primary-light);
+  color: var(--ui-color-primary);
+  border-radius: var(--ui-radius-sm);
+  font-size: var(--ui-font-size-xs);
+  line-height: var(--ui-line-height-normal);
+  white-space: nowrap;
+}
+
+.tag-remove {
+  display: inline-flex;
+  cursor: pointer;
+  opacity: 0.6;
+  font-size: 14px;
+  line-height: 1;
+}
+.tag-remove:hover {
+  opacity: 1;
+}
+
 :host([block]) {
   width: 100%;
 }
@@ -217,6 +276,7 @@ template.innerHTML = `
   <div class="select-container" tabindex="0">
     <div class="select-value">
       <span class="value-text placeholder">请选择</span>
+      <div class="tags-container" style="display:none;"></div>
     </div>
     <button class="clear-btn" type="button" title="清除">
       <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="2">
@@ -230,7 +290,9 @@ template.innerHTML = `
       </svg>
     </span>
   </div>
-  <ul class="dropdown" role="listbox"></ul>
+  <ul class="dropdown" role="listbox">
+    <input class="search-input" type="text" placeholder="搜索..." style="display:none;" />
+  </ul>
   <div class="help-text" style="display:none;"></div>
   <div class="error-text" style="display:none;"></div>
 </div>
@@ -238,7 +300,7 @@ template.innerHTML = `
 
 export class MySelect extends HTMLElement {
   static get observedAttributes() {
-    return ['label', 'placeholder', 'value', 'size', 'disabled', 'required', 'error', 'help-text', 'clearable', 'block'];
+    return ['label', 'placeholder', 'value', 'size', 'disabled', 'required', 'error', 'help-text', 'clearable', 'block', 'name', 'multiple', 'searchable'];
   }
 
   constructor() {
@@ -251,14 +313,20 @@ export class MySelect extends HTMLElement {
     this._requiredMark = this._shadowRoot.querySelector('.required-mark');
     this._container = this._shadowRoot.querySelector('.select-container');
     this._valueText = this._shadowRoot.querySelector('.value-text');
+    this._tagsContainer = this._shadowRoot.querySelector('.tags-container');
     this._dropdown = this._shadowRoot.querySelector('.dropdown');
+    this._searchInput = this._shadowRoot.querySelector('.search-input');
     this._clearBtn = this._shadowRoot.querySelector('.clear-btn');
     this._helpText = this._shadowRoot.querySelector('.help-text');
     this._errorText = this._shadowRoot.querySelector('.error-text');
     this._options = [];
+    this._selectedValues = [];
+    this._focusedIndex = -1;
     this._isOpen = false;
     this._handleOutsideClick = this._handleOutsideClick.bind(this);
     this._handleKeydown = this._handleKeydown.bind(this);
+    this._handleSearchInput = this._handleSearchInput.bind(this);
+    this._handleSearchKeydown = this._handleSearchKeydown.bind(this);
     this._slotObserver = null;
   }
 
@@ -266,6 +334,8 @@ export class MySelect extends HTMLElement {
     this._container.addEventListener('click', this._onToggle.bind(this));
     this._container.addEventListener('keydown', this._handleKeydown);
     this._clearBtn.addEventListener('click', this._onClear.bind(this));
+    this._searchInput.addEventListener('input', this._handleSearchInput);
+    this._searchInput.addEventListener('keydown', this._handleSearchKeydown);
     document.addEventListener('mousedown', this._handleOutsideClick);
 
     this._slotObserver = new MutationObserver(() => this._syncOptions());
@@ -279,6 +349,8 @@ export class MySelect extends HTMLElement {
     this._container.removeEventListener('click', this._onToggle);
     this._container.removeEventListener('keydown', this._handleKeydown);
     this._clearBtn.removeEventListener('click', this._onClear);
+    this._searchInput.removeEventListener('input', this._handleSearchInput);
+    this._searchInput.removeEventListener('keydown', this._handleSearchKeydown);
     document.removeEventListener('mousedown', this._handleOutsideClick);
     if (this._slotObserver) this._slotObserver.disconnect();
   }
@@ -296,19 +368,53 @@ export class MySelect extends HTMLElement {
       element: el
     }));
 
-    if (this.value !== null && this.value !== undefined && this.value !== '') {
-      const selected = this._options.find(o => o.value === this.value);
-      if (selected) {
-        this._valueText.textContent = selected.label;
-        this._valueText.classList.remove('placeholder');
+    if (this.multiple) {
+      this._syncSelectedValues();
+    } else {
+      if (this.value !== null && this.value !== undefined && this.value !== '') {
+        const selected = this._options.find(o => o.value === this.value);
+        if (selected) {
+          this._valueText.textContent = selected.label;
+          this._valueText.classList.remove('placeholder');
+        }
       }
     }
 
     this._renderDropdown();
   }
 
+  _syncSelectedValues() {
+    const attrVal = this.getAttribute('value');
+    if (attrVal && attrVal !== '') {
+      this._selectedValues = attrVal.split(',').filter(v => v !== '');
+    } else {
+      this._selectedValues = [];
+    }
+  }
+
+  _getVisibleOptions() {
+    return this._dropdown.querySelectorAll('.option:not(.disabled):not([style*="display: none"])');
+  }
+
   _renderDropdown() {
+    const currentSearch = this._searchInput.value.toLowerCase();
+    const searchActive = this.searchable && this._isOpen;
+
     this._dropdown.innerHTML = '';
+
+    if (this.searchable) {
+      const searchEl = document.createElement('input');
+      searchEl.className = 'search-input';
+      searchEl.type = 'text';
+      searchEl.placeholder = '搜索...';
+      searchEl.style.display = this._isOpen ? 'block' : 'none';
+      searchEl.value = this._searchInput.value || '';
+      searchEl.addEventListener('input', this._handleSearchInput);
+      searchEl.addEventListener('keydown', this._handleSearchKeydown);
+      this._searchInput = searchEl;
+      this._dropdown.appendChild(searchEl);
+    }
+
     if (this._options.length === 0) {
       const empty = document.createElement('li');
       empty.className = 'empty-state';
@@ -317,13 +423,31 @@ export class MySelect extends HTMLElement {
       return;
     }
 
+    let hasVisible = false;
+
     this._options.forEach(opt => {
+      if (searchActive && currentSearch && !opt.label.toLowerCase().includes(currentSearch)) {
+        return;
+      }
+      hasVisible = true;
       const li = document.createElement('li');
       li.className = 'option';
       li.dataset.value = opt.value;
       li.textContent = opt.label;
       if (opt.disabled) li.classList.add('disabled');
-      if (opt.value === this.value) li.classList.add('selected');
+
+      if (this.multiple) {
+        if (this._selectedValues.includes(opt.value)) {
+          li.classList.add('selected');
+          const check = document.createElement('span');
+          check.className = 'option-check';
+          check.textContent = '\u2713';
+          li.insertBefore(check, li.firstChild);
+        }
+      } else {
+        if (opt.value === this.value) li.classList.add('selected');
+      }
+
       if (!opt.disabled) {
         li.addEventListener('click', (e) => {
           e.stopPropagation();
@@ -332,18 +456,97 @@ export class MySelect extends HTMLElement {
       }
       this._dropdown.appendChild(li);
     });
+
+    if (!hasVisible) {
+      const empty = document.createElement('li');
+      empty.className = 'empty-state';
+      empty.textContent = '暂无选项';
+      this._dropdown.appendChild(empty);
+    }
   }
 
   _selectOption(value, label) {
-    this.value = value;
-    this._valueText.textContent = label;
-    this._valueText.classList.remove('placeholder');
+    if (this.multiple) {
+      const idx = this._selectedValues.indexOf(value);
+      if (idx >= 0) {
+        this._selectedValues.splice(idx, 1);
+      } else {
+        this._selectedValues.push(value);
+      }
+      const newValue = this._selectedValues.join(',');
+      this.setAttribute('value', newValue);
+      this._updateTags();
+      this._renderDropdown();
+      const labels = this._selectedValues.map(v => {
+        const opt = this._options.find(o => o.value === v);
+        return opt ? opt.label : v;
+      });
+      this.dispatchEvent(new CustomEvent('change', {
+        bubbles: true,
+        composed: true,
+        detail: { value: newValue, values: [...this._selectedValues], labels }
+      }));
+    } else {
+      this.value = value;
+      this._valueText.textContent = label;
+      this._valueText.classList.remove('placeholder');
+      this._renderDropdown();
+      this.close();
+      this.dispatchEvent(new CustomEvent('change', {
+        bubbles: true,
+        composed: true,
+        detail: { value, label }
+      }));
+    }
+  }
+
+  _updateTags() {
+    if (!this.multiple) return;
+    this._tagsContainer.innerHTML = '';
+    if (this._selectedValues.length === 0) {
+      this._tagsContainer.style.display = 'none';
+      this._valueText.style.display = '';
+      this._valueText.textContent = this.placeholder || '请选择';
+      this._valueText.classList.add('placeholder');
+      return;
+    }
+    this._valueText.style.display = 'none';
+    this._tagsContainer.style.display = 'flex';
+    this._selectedValues.forEach(val => {
+      const opt = this._options.find(o => o.value === val);
+      if (!opt) return;
+      const tag = document.createElement('span');
+      tag.className = 'tag';
+      tag.textContent = opt.label;
+      const remove = document.createElement('span');
+      remove.className = 'tag-remove';
+      remove.textContent = '\u00d7';
+      remove.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this._removeTag(val);
+      });
+      tag.appendChild(remove);
+      this._tagsContainer.appendChild(tag);
+    });
+  }
+
+  _removeTag(value) {
+    const idx = this._selectedValues.indexOf(value);
+    if (idx >= 0) {
+      this._selectedValues.splice(idx, 1);
+    }
+    const newValue = this._selectedValues.join(',');
+    this.setAttribute('value', newValue);
+    this._updateTags();
     this._renderDropdown();
-    this.close();
+    const labels = this._selectedValues.map(v => {
+      const opt = this._options.find(o => o.value === v);
+      return opt ? opt.label : v;
+    });
     this.dispatchEvent(new CustomEvent('change', {
       bubbles: true,
       composed: true,
-      detail: { value, label }
+      detail: { value: newValue, values: [...this._selectedValues], labels }
     }));
   }
 
@@ -356,27 +559,41 @@ export class MySelect extends HTMLElement {
 
   _onClear(e) {
     e.stopPropagation();
-    this.value = '';
-    this.removeAttribute('value');
-    this._valueText.textContent = this.placeholder || '请选择';
-    this._valueText.classList.add('placeholder');
+    if (this.multiple) {
+      this._selectedValues = [];
+      this.setAttribute('value', '');
+      this._updateTags();
+    } else {
+      this.value = '';
+      this.removeAttribute('value');
+      this._valueText.textContent = this.placeholder || '请选择';
+      this._valueText.classList.add('placeholder');
+    }
     this._renderDropdown();
     this._updateClearBtn();
     this.dispatchEvent(new CustomEvent('clear', {
       bubbles: true,
       composed: true
     }));
-    this.dispatchEvent(new CustomEvent('change', {
-      bubbles: true,
-      composed: true,
-      detail: { value: '', label: '' }
-    }));
+    if (this.multiple) {
+      this.dispatchEvent(new CustomEvent('change', {
+        bubbles: true,
+        composed: true,
+        detail: { value: '', values: [], labels: [] }
+      }));
+    } else {
+      this.dispatchEvent(new CustomEvent('change', {
+        bubbles: true,
+        composed: true,
+        detail: { value: '', label: '' }
+      }));
+    }
   }
 
   _handleOutsideClick(e) {
     if (!this._isOpen) return;
     const path = e.composedPath();
-    if (!path.includes(this)) {
+    if (!path.includes(this) && !path.includes(this._dropdown)) {
       this.close();
     }
   }
@@ -387,7 +604,20 @@ export class MySelect extends HTMLElement {
       case 'Enter':
       case ' ':
         e.preventDefault();
-        this._isOpen ? this.close() : this.open();
+        if (this._isOpen) {
+          if (this._focusedIndex >= 0) {
+            const visible = this._getVisibleOptions();
+            if (visible[this._focusedIndex]) {
+              const value = visible[this._focusedIndex].dataset.value;
+              const opt = this._options.find(o => o.value === value);
+              if (opt) this._selectOption(opt.value, opt.label);
+            }
+          } else {
+            this.close();
+          }
+        } else {
+          this.open();
+        }
         break;
       case 'Escape':
         this.close();
@@ -399,30 +629,69 @@ export class MySelect extends HTMLElement {
         break;
       case 'ArrowUp':
         e.preventDefault();
-        if (!this._isOpen) this.open();
+        if (this._isOpen) this._moveFocus(-1);
+        break;
+      case 'Backspace':
+        if (this.multiple && this._selectedValues.length > 0) {
+          this._removeTag(this._selectedValues[this._selectedValues.length - 1]);
+        }
+        break;
+    }
+  }
+
+  _handleSearchInput() {
+    this._focusedIndex = -1;
+    this._renderDropdown();
+  }
+
+  _handleSearchKeydown(e) {
+    switch (e.key) {
+      case 'Escape':
+        e.stopPropagation();
+        this.close();
+        break;
+      case 'Enter':
+        e.preventDefault();
+        e.stopPropagation();
+        if (this._focusedIndex >= 0) {
+          const visible = this._getVisibleOptions();
+          if (visible[this._focusedIndex]) {
+            const value = visible[this._focusedIndex].dataset.value;
+            const opt = this._options.find(o => o.value === value);
+            if (opt) this._selectOption(opt.value, opt.label);
+          }
+        } else {
+          const visible = this._getVisibleOptions();
+          if (visible.length > 0) {
+            const value = visible[0].dataset.value;
+            const opt = this._options.find(o => o.value === value);
+            if (opt) this._selectOption(opt.value, opt.label);
+          }
+        }
+        break;
+      case 'ArrowDown':
+        e.preventDefault();
+        this._moveFocus(1);
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
         this._moveFocus(-1);
         break;
     }
   }
 
   _moveFocus(direction) {
-    const options = this._dropdown.querySelectorAll('.option:not(.disabled)');
-    if (options.length === 0) return;
-    let currentIdx = -1;
-    options.forEach((opt, idx) => {
-      if (opt.classList.contains('selected')) currentIdx = idx;
-    });
-    const nextIdx = (currentIdx + direction + options.length) % options.length;
-    options.forEach(opt => opt.classList.remove('selected'));
-    options[nextIdx].classList.add('selected');
-    options[nextIdx].scrollIntoView({ block: 'nearest' });
-    const value = options[nextIdx].dataset.value;
-    const option = this._options.find(o => o.value === value);
-    if (option) {
-      this._valueText.textContent = option.label;
-      this._valueText.classList.remove('placeholder');
-      this.value = value;
-    }
+    const visible = this._getVisibleOptions();
+    if (visible.length === 0) return;
+
+    visible.forEach(opt => opt.classList.remove('focused'));
+
+    this._focusedIndex = this._focusedIndex + direction;
+    if (this._focusedIndex < 0) this._focusedIndex = visible.length - 1;
+    if (this._focusedIndex >= visible.length) this._focusedIndex = 0;
+
+    visible[this._focusedIndex].classList.add('focused');
+    visible[this._focusedIndex].scrollIntoView({ block: 'nearest' });
   }
 
   _positionDropdown() {
@@ -443,25 +712,46 @@ export class MySelect extends HTMLElement {
   open() {
     if (this._isOpen || this.disabled) return;
     this._isOpen = true;
+    this._focusedIndex = -1;
     this._container.classList.add('open');
     this._positionDropdown();
-    requestAnimationFrame(() => this._dropdown.classList.add('open'));
+    this._renderDropdown();
+    requestAnimationFrame(() => {
+      this._dropdown.classList.add('open');
+      if (this.searchable) {
+        this._searchInput.style.display = 'block';
+        this._searchInput.focus();
+      }
+    });
     this.dispatchEvent(new CustomEvent('open', { bubbles: true, composed: true }));
   }
 
   close() {
     if (!this._isOpen) return;
     this._isOpen = false;
+    this._focusedIndex = -1;
     this._container.classList.remove('open');
     this._dropdown.classList.remove('open');
+    if (this.searchable) {
+      this._searchInput.value = '';
+      this._searchInput.style.display = 'none';
+    }
     this.dispatchEvent(new CustomEvent('close', { bubbles: true, composed: true }));
   }
 
   _updateClearBtn() {
-    if (this.clearable && !this.disabled && this.value && this.value !== '') {
-      this._clearBtn.style.display = 'flex';
+    if (this.multiple) {
+      if (this.clearable && !this.disabled && this._selectedValues.length > 0) {
+        this._clearBtn.style.display = 'flex';
+      } else {
+        this._clearBtn.style.display = 'none';
+      }
     } else {
-      this._clearBtn.style.display = 'none';
+      if (this.clearable && !this.disabled && this.value && this.value !== '') {
+        this._clearBtn.style.display = 'flex';
+      } else {
+        this._clearBtn.style.display = 'none';
+      }
     }
   }
 
@@ -476,9 +766,14 @@ export class MySelect extends HTMLElement {
     if (this.disabled) this._container.classList.add('disabled');
     if (this.error) this._container.classList.add('error');
 
-    if (!this.value || this.value === '') {
-      this._valueText.textContent = this.placeholder || '请选择';
-      this._valueText.classList.add('placeholder');
+    if (this.multiple) {
+      this._syncSelectedValues();
+      this._updateTags();
+    } else {
+      if (!this.value || this.value === '') {
+        this._valueText.textContent = this.placeholder || '请选择';
+        this._valueText.classList.add('placeholder');
+      }
     }
 
     this._helpText.textContent = this.helpText || '';
@@ -493,6 +788,41 @@ export class MySelect extends HTMLElement {
     this._updateClearBtn();
   }
 
+  validate() {
+    if (this.required) {
+      if (this.multiple) {
+        if (this._selectedValues.length === 0) {
+          this.error = '请选择此项';
+          return { valid: false, message: '请选择此项' };
+        }
+      } else {
+        if (!this.value || this.value === '') {
+          this.error = '请选择此项';
+          return { valid: false, message: '请选择此项' };
+        }
+      }
+    }
+    return { valid: true, message: '' };
+  }
+
+  resetValidation() {
+    this.removeAttribute('error');
+  }
+
+  reset() {
+    if (this.multiple) {
+      this._selectedValues = [];
+      this.setAttribute('value', '');
+      this._updateTags();
+    } else {
+      this.removeAttribute('value');
+      this._valueText.textContent = this.placeholder || '请选择';
+      this._valueText.classList.add('placeholder');
+    }
+    this._renderDropdown();
+    this.resetValidation();
+  }
+
   get label() { return this.getAttribute('label'); }
   set label(val) { this.setAttribute('label', val); }
 
@@ -504,16 +834,36 @@ export class MySelect extends HTMLElement {
     return v === null ? '' : v;
   }
   set value(val) {
-    this.setAttribute('value', val);
-    if (this._options.length > 0) {
-      const selected = this._options.find(o => o.value === val);
-      if (selected) {
-        this._valueText.textContent = selected.label;
-        this._valueText.classList.remove('placeholder');
+    if (this.multiple) {
+      if (typeof val === 'string' && val !== '') {
+        this._selectedValues = val.split(',').filter(v => v !== '');
+      } else {
+        this._selectedValues = [];
       }
+      this.setAttribute('value', typeof val === 'string' ? val : '');
+      this._updateTags();
+      this._renderDropdown();
+      this._updateClearBtn();
+    } else {
+      this.setAttribute('value', val);
+      if (this._options.length > 0) {
+        const selected = this._options.find(o => o.value === val);
+        if (selected) {
+          this._valueText.textContent = selected.label;
+          this._valueText.classList.remove('placeholder');
+        }
+      }
+      this._renderDropdown();
+      this._updateClearBtn();
     }
-    this._renderDropdown();
-    this._updateClearBtn();
+  }
+
+  get values() {
+    if (this.multiple) {
+      return [...this._selectedValues];
+    }
+    const v = this.value;
+    return v ? [v] : [];
   }
 
   get size() { return this.getAttribute('size') || 'md'; }
@@ -536,6 +886,15 @@ export class MySelect extends HTMLElement {
 
   get block() { return this.hasAttribute('block'); }
   set block(val) { val ? this.setAttribute('block', '') : this.removeAttribute('block'); }
+
+  get name() { return this.getAttribute('name'); }
+  set name(val) { this.setAttribute('name', val); }
+
+  get multiple() { return this.hasAttribute('multiple'); }
+  set multiple(val) { val ? this.setAttribute('multiple', '') : this.removeAttribute('multiple'); }
+
+  get searchable() { return this.hasAttribute('searchable'); }
+  set searchable(val) { val ? this.setAttribute('searchable', '') : this.removeAttribute('searchable'); }
 }
 
 customElements.define('my-select', MySelect);
