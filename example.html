@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>轻量 Web Components UI 组件库 - 示例</title>
+  <link rel="stylesheet" href="./src/styles/theme.css">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 40px 24px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: #f8fafc;
+      color: #1f2937;
+      line-height: 1.6;
+    }
+    .page-title {
+      font-size: 32px;
+      font-weight: 700;
+      margin: 0 0 8px;
+      background: linear-gradient(135deg, #4f46e5, #8b5cf6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .page-subtitle {
+      color: #6b7280;
+      margin: 0 0 40px;
+      font-size: 15px;
+    }
+    .theme-switcher {
+      position: fixed;
+      top: 24px;
+      right: 24px;
+      display: flex;
+      gap: 8px;
+      padding: 8px;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+      z-index: 100;
+    }
+    .theme-btn {
+      width: 32px;
+      height: 32px;
+      border: 2px solid transparent;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      padding: 0;
+    }
+    .theme-btn:hover { transform: scale(1.1); }
+    .theme-btn.active { border-color: #1f2937; }
+    .theme-btn[data-theme="default"] { background: linear-gradient(135deg, #4f46e5, #6366f1); }
+    .theme-btn[data-theme="green"] { background: linear-gradient(135deg, #059669, #10b981); }
+    .theme-btn[data-theme="orange"] { background: linear-gradient(135deg, #ea580c, #f59e0b); }
+    .theme-btn[data-theme="pink"] { background: linear-gradient(135deg, #db2777, #ec4899); }
+    .container {
+      max-width: 960px;
+      margin: 0 auto;
+    }
+    .section {
+      background: white;
+      border-radius: 16px;
+      padding: 32px;
+      margin-bottom: 24px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+    .section-title {
+      font-size: 20px;
+      font-weight: 600;
+      margin: 0 0 8px;
+      color: #1f2937;
+    }
+    .section-desc {
+      color: #6b7280;
+      margin: 0 0 24px;
+      font-size: 14px;
+    }
+    .demo-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    .demo-row-title {
+      width: 100%;
+      font-size: 13px;
+      font-weight: 500;
+      color: #9ca3af;
+      margin: 0 0 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .demo-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 16px;
+    }
+    .demo-block {
+      margin-bottom: 16px;
+    }
+    .event-log {
+      background: #0f172a;
+      color: #e2e8f0;
+      border-radius: 12px;
+      padding: 16px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 13px;
+      max-height: 200px;
+      overflow-y: auto;
+      margin-top: 16px;
+    }
+    .event-log .log-item {
+      padding: 4px 0;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+    }
+    .event-log .log-item:last-child { border-bottom: none; }
+    .event-log .log-time {
+      color: #64748b;
+      margin-right: 8px;
+    }
+    .event-log .log-type {
+      color: #a78bfa;
+      font-weight: 500;
+      margin-right: 8px;
+    }
+    .code-tag {
+      display: inline-block;
+      background: #f1f5f9;
+      color: #475569;
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+      margin: 0 2px;
+    }
+  </style>
+</head>
+<body>
+  <div class="theme-switcher">
+    <button class="theme-btn active" data-theme="default" title="默认主题"></button>
+    <button class="theme-btn" data-theme="green" title="绿色主题"></button>
+    <button class="theme-btn" data-theme="orange" title="橙色主题"></button>
+    <button class="theme-btn" data-theme="pink" title="粉色主题"></button>
+  </div>
+
+  <div class="container">
+    <h1 class="page-title">轻量 Web Components UI 组件库</h1>
+    <p class="page-subtitle">基于原生 Web Components 标准 · Shadow DOM 样式隔离 · CustomEvent 事件冒泡 · CSS 自定义属性换肤</p>
+
+    <section class="section">
+      <h2 class="section-title">按钮组件 my-button</h2>
+      <p class="section-desc">
+        支持的属性：<span class="code-tag">variant</span><span class="code-tag">size</span><span class="code-tag">type</span><span class="code-tag">disabled</span><span class="code-tag">loading</span><span class="code-tag">block</span><span class="code-tag">rounded</span>
+      </p>
+      <div class="demo-row">
+        <div class="demo-row-title">variant 变体</div>
+        <my-button variant="primary">主要按钮</my-button>
+        <my-button variant="secondary">次要按钮</my-button>
+        <my-button variant="outline">描边按钮</my-button>
+        <my-button variant="ghost">幽灵按钮</my-button>
+        <my-button variant="danger">危险按钮</my-button>
+      </div>
+      <div class="demo-row">
+        <div class="demo-row-title">size 尺寸</div>
+        <my-button size="xs">超小</my-button>
+        <my-button size="sm">小号</my-button>
+        <my-button size="md">中号</my-button>
+        <my-button size="lg">大号</my-button>
+      </div>
+      <div class="demo-row">
+        <div class="demo-row-title">状态</div>
+        <my-button disabled>禁用状态</my-button>
+        <my-button loading>加载中</my-button>
+        <my-button variant="primary" loading>提交中</my-button>
+        <my-button rounded="full">圆角按钮</my-button>
+      </div>
+      <div class="demo-row">
+        <div class="demo-row-title">带图标（使用 slot）</div>
+        <my-button>
+          <span slot="icon-left">➕</span>
+          新建
+        </my-button>
+        <my-button variant="outline">
+          下载
+          <span slot="icon-right">⬇️</span>
+        </my-button>
+      </div>
+      <div class="demo-block">
+        <div class="demo-row-title">block 块级按钮</div>
+        <my-button block>占满整行宽度</my-button>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2 class="section-title">输入框组件 my-input</h2>
+      <p class="section-desc">
+        支持的属性：<span class="code-tag">label</span><span class="code-tag">placeholder</span><span class="code-tag">type</span><span class="code-tag">value</span><span class="code-tag">size</span><span class="code-tag">disabled</span><span class="code-tag">readonly</span><span class="code-tag">required</span><span class="code-tag">error</span><span class="code-tag">help-text</span><span class="code-tag">clearable</span><span class="code-tag">maxlength</span>
+      </p>
+      <div class="demo-grid">
+        <div>
+          <div class="demo-row-title">基础用法</div>
+          <my-input label="用户名" placeholder="请输入用户名" clearable></my-input>
+        </div>
+        <div>
+          <div class="demo-row-title">密码输入</div>
+          <my-input label="密码" type="password" placeholder="请输入密码"></my-input>
+        </div>
+        <div>
+          <div class="demo-row-title">带帮助文本</div>
+          <my-input label="邮箱" type="email" placeholder="name@example.com" help-text="我们不会公开您的邮箱"></my-input>
+        </div>
+        <div>
+          <div class="demo-row-title">错误状态</div>
+          <my-input label="手机号" error="请输入有效的手机号码" value="12345"></my-input>
+        </div>
+        <div>
+          <div class="demo-row-title">尺寸</div>
+          <my-input size="sm" placeholder="small 尺寸"></my-input>
+          <div style="height:8px"></div>
+          <my-input size="md" placeholder="medium 尺寸"></my-input>
+          <div style="height:8px"></div>
+          <my-input size="lg" placeholder="large 尺寸"></my-input>
+        </div>
+        <div>
+          <div class="demo-row-title">状态</div>
+          <my-input disabled value="禁用状态" label="禁用"></my-input>
+          <div style="height:8px"></div>
+          <my-input readonly value="只读状态" label="只读"></my-input>
+          <div style="height:8px"></div>
+          <my-input label="必填" required placeholder="必填项"></my-input>
+        </div>
+        <div style="grid-column: span 1;">
+          <div class="demo-row-title">带前后缀 slot</div>
+          <my-input placeholder="请输入金额">
+            <span slot="prefix">¥</span>
+            <span slot="suffix">.00</span>
+          </my-input>
+          <div style="height:12px"></div>
+          <my-input placeholder="搜索内容">
+            <span slot="prefix">🔍</span>
+          </my-input>
+        </div>
+        <div>
+          <div class="demo-row-title">数字输入</div>
+          <my-input type="number" label="数量" min="1" max="99" step="1" value="1"></my-input>
+        </div>
+      </div>
+      <div class="event-log" id="input-log">
+        <div class="log-item"><span class="log-time">--:--:--</span><span class="log-type">ready</span>输入框事件日志</div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2 class="section-title">下拉菜单组件 my-select</h2>
+      <p class="section-desc">
+        支持的属性：<span class="code-tag">label</span><span class="code-tag">placeholder</span><span class="code-tag">value</span><span class="code-tag">size</span><span class="code-tag">disabled</span><span class="code-tag">error</span><span class="code-tag">help-text</span><span class="code-tag">clearable</span>
+      </p>
+      <div class="demo-grid">
+        <div>
+          <div class="demo-row-title">基础用法</div>
+          <my-select label="城市" placeholder="请选择城市" clearable>
+            <my-option value="beijing">北京</my-option>
+            <my-option value="shanghai">上海</my-option>
+            <my-option value="guangzhou">广州</my-option>
+            <my-option value="shenzhen">深圳</my-option>
+            <my-option value="hangzhou">杭州</my-option>
+          </my-select>
+        </div>
+        <div>
+          <div class="demo-row-title">尺寸</div>
+          <my-select size="sm" placeholder="small">
+            <my-option value="a">选项A</my-option>
+            <my-option value="b">选项B</my-option>
+          </my-select>
+          <div style="height:8px"></div>
+          <my-select size="md" placeholder="medium">
+            <my-option value="a">选项A</my-option>
+            <my-option value="b">选项B</my-option>
+          </my-select>
+          <div style="height:8px"></div>
+          <my-select size="lg" placeholder="large">
+            <my-option value="a">选项A</my-option>
+            <my-option value="b">选项B</my-option>
+          </my-select>
+        </div>
+        <div>
+          <div class="demo-row-title">带禁用项</div>
+          <my-select label="水果" value="banana">
+            <my-option value="apple">🍎 苹果</my-option>
+            <my-option value="banana">🍌 香蕉</my-option>
+            <my-option value="grape" disabled>🍇 葡萄（缺货）</my-option>
+            <my-option value="orange">🍊 橙子</my-option>
+            <my-option value="pear" disabled>🍐 梨（缺货）</my-option>
+          </my-select>
+        </div>
+        <div>
+          <div class="demo-row-title">状态</div>
+          <my-select disabled label="禁用状态" placeholder="不可选择">
+            <my-option value="a">选项A</my-option>
+          </my-select>
+          <div style="height:8px"></div>
+          <my-select error="请选择一个分类" label="分类">
+            <my-option value="">未选择</my-option>
+          </my-select>
+        </div>
+      </div>
+      <div class="event-log" id="select-log">
+        <div class="log-item"><span class="log-time">--:--:--</span><span class="log-type">ready</span>下拉菜单事件日志</div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2 class="section-title">模态对话框组件 my-modal</h2>
+      <p class="section-desc">
+        支持的属性：<span class="code-tag">open</span><span class="code-tag">size</span><span class="code-tag">title</span><span class="code-tag">hide-header</span><span class="code-tag">hide-footer</span><span class="code-tag">hide-close</span><span class="code-tag">mask-closable</span><span class="code-tag">esc-closable</span>
+      </p>
+      <div class="demo-row">
+        <div class="demo-row-title">触发方式</div>
+        <my-button id="open-basic">基础对话框</my-button>
+        <my-button variant="outline" id="open-form">表单对话框</my-button>
+        <my-button variant="secondary" id="open-sizes">不同尺寸</my-button>
+        <my-button variant="danger" id="open-confirm">确认对话框</my-button>
+      </div>
+      <div class="event-log" id="modal-log">
+        <div class="log-item"><span class="log-time">--:--:--</span><span class="log-type">ready</span>对话框事件日志</div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2 class="section-title">消息提示条组件 my-toast</h2>
+      <p class="section-desc">
+        支持的属性：<span class="code-tag">type</span><span class="code-tag">duration</span><span class="code-tag">closable</span>。也可通过 <span class="code-tag">showToast()</span> 静态方法调用。
+      </p>
+      <div class="demo-row">
+        <div class="demo-row-title">type 类型</div>
+        <my-button id="toast-success" variant="primary" style="background:#10b981;border-color:#10b981;">Success</my-button>
+        <my-button id="toast-warning" variant="primary" style="background:#f59e0b;border-color:#f59e0b;">Warning</my-button>
+        <my-button id="toast-error" variant="danger">Error</my-button>
+        <my-button id="toast-info" variant="primary">Info</my-button>
+      </div>
+      <div class="demo-row">
+        <div class="demo-row-title">自定义配置</div>
+        <my-button id="toast-closable" variant="outline">可手动关闭</my-button>
+        <my-button id="toast-long" variant="outline">长停留时间 (5s)</my-button>
+        <my-button id="toast-multi" variant="outline">批量弹出</my-button>
+        <my-button id="toast-html" variant="outline">长文本内容</my-button>
+      </div>
+      <div class="event-log" id="toast-log">
+        <div class="log-item"><span class="log-time">--:--:--</span><span class="log-type">ready</span>消息提示事件日志</div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2 class="section-title">综合示例：用户注册表单</h2>
+      <p class="section-desc">使用所有组件构建一个真实场景的表单</p>
+      <div style="max-width: 480px;">
+        <div class="demo-block">
+          <my-input id="reg-username" label="用户名" placeholder="请输入用户名 (3-20字符)" clearable required help-text="支持字母、数字、下划线"></my-input>
+        </div>
+        <div class="demo-block">
+          <my-input id="reg-email" label="邮箱" type="email" placeholder="name@example.com" required></my-input>
+        </div>
+        <div class="demo-block">
+          <my-input id="reg-password" label="密码" type="password" placeholder="请输入密码 (至少8位)" required></my-input>
+        </div>
+        <div class="demo-block">
+          <my-select id="reg-gender" label="性别" placeholder="请选择">
+            <my-option value="male">男</my-option>
+            <my-option value="female">女</my-option>
+            <my-option value="other">其他</my-option>
+          </my-select>
+        </div>
+        <div class="demo-block">
+          <my-select id="reg-country" label="所在地区" placeholder="请选择国家/地区" clearable>
+            <my-option value="cn">🇨🇳 中国</my-option>
+            <my-option value="us">🇺🇸 美国</my-option>
+            <my-option value="jp">🇯🇵 日本</my-option>
+            <my-option value="kr">🇰🇷 韩国</my-option>
+            <my-option value="uk">🇬🇧 英国</my-option>
+            <my-option value="de">🇩🇪 德国</my-option>
+            <my-option value="fr">🇫🇷 法国</my-option>
+          </my-select>
+        </div>
+        <div style="display: flex; gap: 12px; margin-top: 24px;">
+          <my-button id="reg-submit" block loading-text="注册中...">立即注册</my-button>
+          <my-button block variant="secondary" id="reg-reset">重置</my-button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <my-modal id="modal-basic" title="欢迎使用">
+    <p>这是一个基础模态对话框。你可以通过点击遮罩层、按 <kbd class="code-tag">Esc</kbd> 键或点击右上角关闭按钮来关闭它。</p>
+    <p>对话框支持完整的键盘交互，使用 <kbd class="code-tag">Tab</kbd> 键在可聚焦元素之间循环导航。</p>
+  </my-modal>
+
+  <my-modal id="modal-form" title="修改个人信息">
+    <div style="display: flex; flex-direction: column; gap: 16px; max-width: 420px;">
+      <my-input label="昵称" placeholder="请输入昵称" value="小明"></my-input>
+      <my-input label="个人简介" placeholder="介绍一下自己吧"></my-input>
+      <my-select label="职业" placeholder="请选择">
+        <my-option value="dev">前端开发</my-option>
+        <my-option value="designer">设计师</my-option>
+        <my-option value="pm">产品经理</my-option>
+        <my-option value="other">其他</my-option>
+      </my-select>
+    </div>
+    <div slot="footer">
+      <my-button variant="secondary" onclick="document.getElementById('modal-form').hide()">取消</my-button>
+      <my-button variant="primary" onclick="handleFormConfirm()">保存修改</my-button>
+    </div>
+  </my-modal>
+
+  <my-modal id="modal-size" title="不同尺寸的对话框" size="lg">
+    <p>当前对话框尺寸为 <span class="code-tag">size="lg"</span>（720px）。</p>
+    <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+      <my-button size="sm" variant="outline" onclick="document.getElementById('modal-size').setAttribute('size','sm')">sm (384px)</my-button>
+      <my-button size="sm" variant="outline" onclick="document.getElementById('modal-size').setAttribute('size','md')">md (520px)</my-button>
+      <my-button size="sm" variant="outline" onclick="document.getElementById('modal-size').setAttribute('size','lg')">lg (720px)</my-button>
+      <my-button size="sm" variant="outline" onclick="document.getElementById('modal-size').setAttribute('size','xl')">xl (960px)</my-button>
+      <my-button size="sm" variant="outline" onclick="document.getElementById('modal-size').setAttribute('size','full')">full</my-button>
+    </div>
+  </my-modal>
+
+  <my-modal id="modal-confirm" title="确认删除" size="sm">
+    <div style="display: flex; gap: 12px; align-items: flex-start;">
+      <div style="width:40px;height:40px;border-radius:50%;background:#fef2f2;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:20px;">⚠️</div>
+      <div>
+        <p style="margin:0 0 8px;"><strong>确定要删除这个项目吗？</strong></p>
+        <p style="margin:0;color:#6b7280;font-size:14px;">此操作无法撤销，删除后相关数据将永久丢失。</p>
+      </div>
+    </div>
+    <div slot="footer">
+      <my-button variant="secondary" onclick="document.getElementById('modal-confirm').hide()">再想想</my-button>
+      <my-button variant="danger" onclick="handleDeleteConfirm()">确认删除</my-button>
+    </div>
+  </my-modal>
+
+  <script type="module">
+    import './src/components/button.js';
+    import './src/components/input.js';
+    import './src/components/select.js';
+    import './src/components/modal.js';
+    import './src/components/toast.js';
+    import { showToast } from './src/components/toast.js';
+
+    function now() {
+      const d = new Date();
+      return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`;
+    }
+    function appendLog(id, type, detail) {
+      const log = document.getElementById(id);
+      if (!log) return;
+      const item = document.createElement('div');
+      item.className = 'log-item';
+      const d = detail ? ` <span style="color:#38bdf8;">${JSON.stringify(detail)}</span>` : '';
+      item.innerHTML = `<span class="log-time">${now()}</span><span class="log-type">${type}</span>${d}`;
+      log.appendChild(item);
+      log.scrollTop = log.scrollHeight;
+    }
+
+    const themes = {
+      default: {},
+      green: {
+        '--ui-color-primary': '#059669',
+        '--ui-color-primary-hover': '#047857',
+        '--ui-color-primary-active': '#065f46',
+        '--ui-color-primary-light': '#ecfdf5',
+        '--ui-color-border-focus': '#059669',
+      },
+      orange: {
+        '--ui-color-primary': '#ea580c',
+        '--ui-color-primary-hover': '#c2410c',
+        '--ui-color-primary-active': '#9a3412',
+        '--ui-color-primary-light': '#fff7ed',
+        '--ui-color-border-focus': '#ea580c',
+      },
+      pink: {
+        '--ui-color-primary': '#db2777',
+        '--ui-color-primary-hover': '#be185d',
+        '--ui-color-primary-active': '#9d174d',
+        '--ui-color-primary-light': '#fdf2f8',
+        '--ui-color-border-focus': '#db2777',
+      }
+    };
+
+    document.querySelectorAll('.theme-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const theme = themes[btn.dataset.theme];
+        const root = document.documentElement;
+        Object.keys(themes.default).forEach(k => root.style.removeProperty(k));
+        Object.keys(theme).forEach(k => root.style.setProperty(k, theme[k]));
+        showToast.success(`已切换到 ${btn.dataset.theme} 主题`);
+      });
+    });
+
+    const inputEl = document.querySelector('my-input[label="用户名"]');
+    inputEl.addEventListener('input', e => appendLog('input-log', 'input', e.detail));
+    inputEl.addEventListener('change', e => appendLog('input-log', 'change', e.detail));
+    inputEl.addEventListener('focus', () => appendLog('input-log', 'focus'));
+    inputEl.addEventListener('blur', () => appendLog('input-log', 'blur'));
+    inputEl.addEventListener('clear', () => appendLog('input-log', 'clear'));
+
+    const selectEl = document.querySelector('my-select[label="城市"]');
+    selectEl.addEventListener('change', e => appendLog('select-log', 'change', e.detail));
+    selectEl.addEventListener('open', () => appendLog('select-log', 'open'));
+    selectEl.addEventListener('close', () => appendLog('select-log', 'close'));
+    selectEl.addEventListener('clear', () => appendLog('select-log', 'clear'));
+
+    document.getElementById('open-basic').addEventListener('click', () => {
+      document.getElementById('modal-basic').show();
+    });
+    document.getElementById('open-form').addEventListener('click', () => {
+      document.getElementById('modal-form').show();
+    });
+    document.getElementById('open-sizes').addEventListener('click', () => {
+      document.getElementById('modal-size').show();
+    });
+    document.getElementById('open-confirm').addEventListener('click', () => {
+      document.getElementById('modal-confirm').show();
+    });
+
+    document.getElementById('modal-basic').addEventListener('open', e => appendLog('modal-log', 'basic open'));
+    document.getElementById('modal-basic').addEventListener('close', e => appendLog('modal-log', 'basic close', e.detail));
+    document.getElementById('modal-basic').addEventListener('before-close', e => {
+      appendLog('modal-log', 'before-close', e.detail);
+    });
+
+    window.handleFormConfirm = function() {
+      document.getElementById('modal-form').hide();
+      showToast.success('个人信息已保存');
+      appendLog('modal-log', 'form confirm');
+    };
+    window.handleDeleteConfirm = function() {
+      document.getElementById('modal-confirm').hide();
+      showToast.warning('项目已删除（模拟）');
+      appendLog('modal-log', 'delete confirm');
+    };
+
+    document.getElementById('toast-success').addEventListener('click', () => {
+      showToast.success('操作成功完成！');
+      appendLog('toast-log', 'showToast.success');
+    });
+    document.getElementById('toast-warning').addEventListener('click', () => {
+      showToast.warning('请注意检查您的输入');
+      appendLog('toast-log', 'showToast.warning');
+    });
+    document.getElementById('toast-error').addEventListener('click', () => {
+      showToast.error('发生错误，请稍后重试');
+      appendLog('toast-log', 'showToast.error');
+    });
+    document.getElementById('toast-info').addEventListener('click', () => {
+      showToast.info('这是一条提示信息');
+      appendLog('toast-log', 'showToast.info');
+    });
+    document.getElementById('toast-closable').addEventListener('click', () => {
+      showToast({ message: '点击右侧 × 可关闭此提示', type: 'info', closable: true, duration: 30000 });
+    });
+    document.getElementById('toast-long').addEventListener('click', () => {
+      showToast({ message: '这条消息会停留 5 秒钟', type: 'success', duration: 5000 });
+    });
+    document.getElementById('toast-multi').addEventListener('click', () => {
+      showToast.success('第 1 条消息');
+      setTimeout(() => showToast.info('第 2 条消息'), 200);
+      setTimeout(() => showToast.warning('第 3 条消息'), 400);
+      setTimeout(() => showToast.error('第 4 条消息'), 600);
+    });
+    document.getElementById('toast-html').addEventListener('click', () => {
+      showToast('这是一段较长的提示文本，用于测试 Toast 在内容较多时的自动换行和布局效果。组件最大宽度为 480px，超出会自动折行显示。');
+    });
+
+    document.getElementById('reg-reset').addEventListener('click', () => {
+      document.getElementById('reg-username').value = '';
+      document.getElementById('reg-email').value = '';
+      document.getElementById('reg-password').value = '';
+      document.getElementById('reg-gender').value = '';
+      document.getElementById('reg-country').value = '';
+      showToast.info('表单已重置');
+    });
+
+    document.getElementById('reg-submit').addEventListener('click', async (e) => {
+      const btn = e.currentTarget;
+      const username = document.getElementById('reg-username').value;
+      const email = document.getElementById('reg-email').value;
+      const password = document.getElementById('reg-password').value;
+      const gender = document.getElementById('reg-gender').value;
+      const country = document.getElementById('reg-country').value;
+
+      if (!username) { document.getElementById('reg-username').error = '请输入用户名'; return; }
+      else document.getElementById('reg-username').removeAttribute('error');
+      if (!email) { document.getElementById('reg-email').error = '请输入邮箱'; return; }
+      else document.getElementById('reg-email').removeAttribute('error');
+      if (!password) { document.getElementById('reg-password').error = '请输入密码'; return; }
+      else document.getElementById('reg-password').removeAttribute('error');
+
+      btn.loading = true;
+      btn.disabled = true;
+      setTimeout(() => {
+        btn.loading = false;
+        btn.disabled = false;
+        showToast.success(`注册成功！欢迎您，${username}`);
+        console.log('表单数据：', { username, email, password, gender, country });
+      }, 1500);
+    });
+  </script>
+</body>
+</html>
