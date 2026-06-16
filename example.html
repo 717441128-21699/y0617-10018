@@ -253,7 +253,7 @@
     <section class="section">
       <h2 class="section-title">下拉菜单组件 my-select</h2>
       <p class="section-desc">
-        支持的属性：<span class="code-tag">label</span><span class="code-tag">placeholder</span><span class="code-tag">value</span><span class="code-tag">size</span><span class="code-tag">disabled</span><span class="code-tag">required</span><span class="code-tag">error</span><span class="code-tag">clearable</span><span class="code-tag">searchable</span><span class="code-tag">multiple</span><span class="code-tag">name</span>
+        支持的属性：<span class="code-tag">label</span><span class="code-tag">placeholder</span><span class="code-tag">value</span><span class="code-tag">size</span><span class="code-tag">disabled</span><span class="code-tag">required</span><span class="code-tag">error</span><span class="code-tag">clearable</span><span class="code-tag">searchable</span><span class="code-tag">multiple</span><span class="code-tag">loading</span><span class="code-tag">name</span>。输入搜索不会再失焦，必填选好后红框自动消除。
       </p>
       <div class="demo-grid">
         <div>
@@ -267,16 +267,7 @@
           </my-select>
         </div>
         <div>
-          <div class="demo-row-title">带禁用项</div>
-          <my-select label="水果" value="banana">
-            <my-option value="apple">🍎 苹果</my-option>
-            <my-option value="banana">🍌 香蕉</my-option>
-            <my-option value="grape" disabled>🍇 葡萄（缺货）</my-option>
-            <my-option value="orange">🍊 橙子</my-option>
-          </my-select>
-        </div>
-        <div>
-          <div class="demo-row-title">搜索模式 searchable</div>
+          <div class="demo-row-title">搜索模式（连续输入不失焦）</div>
           <my-select label="编程语言" placeholder="输入关键词搜索" searchable name="lang">
             <my-option value="javascript">JavaScript</my-option>
             <my-option value="typescript">TypeScript</my-option>
@@ -288,12 +279,10 @@
             <my-option value="cpp">C++</my-option>
             <my-option value="swift">Swift</my-option>
             <my-option value="kotlin">Kotlin</my-option>
-            <my-option value="ruby">Ruby</my-option>
-            <my-option value="php">PHP</my-option>
           </my-select>
         </div>
         <div>
-          <div class="demo-row-title">多选模式 multiple</div>
+          <div class="demo-row-title">多选模式（标签展示，数据与表单一致）</div>
           <my-select label="技能标签" placeholder="选择多个标签" multiple clearable name="skills">
             <my-option value="html">HTML</my-option>
             <my-option value="css">CSS</my-option>
@@ -306,32 +295,34 @@
           </my-select>
         </div>
         <div>
-          <div class="demo-row-title">搜索+多选组合</div>
-          <my-select label="兴趣爱好" placeholder="搜索并选择" searchable multiple name="hobbies">
-            <my-option value="reading">阅读</my-option>
-            <my-option value="music">音乐</my-option>
-            <my-option value="movie">电影</my-option>
-            <my-option value="sport">运动</my-option>
-            <my-option value="travel">旅行</my-option>
-            <my-option value="cooking">烹饪</my-option>
-            <my-option value="photography">摄影</my-option>
-            <my-option value="painting">绘画</my-option>
-            <my-option value="gaming">游戏</my-option>
-            <my-option value="gardening">园艺</my-option>
-          </my-select>
-        </div>
-        <div>
-          <div class="demo-row-title">必填校验 required</div>
-          <my-select label="部门" placeholder="请选择部门" required name="dept">
+          <div class="demo-row-title">必填校验（选好后红框自动消失）</div>
+          <my-select label="部门" placeholder="先点'仅校验'看红框，再选值观察红框消除" required name="dept">
             <my-option value="tech">技术部</my-option>
             <my-option value="product">产品部</my-option>
             <my-option value="design">设计部</my-option>
             <my-option value="marketing">市场部</my-option>
           </my-select>
         </div>
+        <div>
+          <div class="demo-row-title">远程加载 loading 状态</div>
+          <my-select id="remote-select" label="用户列表" placeholder="点击加载远程数据" searchable name="remoteUser">
+          </my-select>
+          <div style="display:flex;gap:8px;margin-top:8px;">
+            <my-button size="xs" variant="outline" id="btn-load-remote">加载数据</my-button>
+            <my-button size="xs" variant="secondary" id="btn-clear-remote">清空选项</my-button>
+          </div>
+        </div>
+        <div>
+          <div class="demo-row-title">搜索无结果空状态</div>
+          <my-select label="演示：搜索 xyz" placeholder="搜索 xyz 试试" searchable name="empty-demo">
+            <my-option value="a">Apple</my-option>
+            <my-option value="b">Banana</my-option>
+            <my-option value="c">Cherry</my-option>
+          </my-select>
+        </div>
       </div>
       <div class="event-log" id="select-log">
-        <div class="log-item"><span class="log-time">--:--:--</span><span class="log-type">ready</span>下拉菜单事件日志</div>
+        <div class="log-item"><span class="log-time">--:--:--</span><span class="log-type">ready</span>下拉菜单事件日志（验证不重复）</div>
       </div>
     </section>
 
@@ -378,40 +369,52 @@
     </section>
 
     <section class="section">
-      <h2 class="section-title">表单校验示例 my-form</h2>
+      <h2 class="section-title">表单校验示例 my-form + my-fieldset</h2>
       <p class="section-desc">
-        <span class="code-tag">my-form</span> 容器统一管理校验、重置和提交。<span class="code-tag">my-input</span> 通过 <span class="code-tag">rules</span> 声明校验规则，<span class="code-tag">my-select</span> 通过 <span class="code-tag">required</span> 标记必填。提交时统一校验并滚动到首个错误字段。
+        使用 <span class="code-tag">my-fieldset</span> 进行字段分组。<span class="code-tag">form.submit(async callback)</span> 调用时自动禁用整表 + loading 遮罩。提交成功后展示完整数据和 <span class="code-tag">summary</span> 校验摘要。
       </p>
       <my-form id="demo-form">
-        <my-input name="username" label="用户名" placeholder="3-20个字符" clearable required rules="required|min:3|max:20" help-text="支持字母、数字、下划线"></my-input>
-        <my-input name="email" label="邮箱" type="email" placeholder="name@example.com" required rules="required|email"></my-input>
-        <my-input name="password" label="密码" type="password" placeholder="至少6位" required rules="required|min:6"></my-input>
-        <my-select name="gender" label="性别" placeholder="请选择" required>
-          <my-option value="male">男</my-option>
-          <my-option value="female">女</my-option>
-          <my-option value="other">其他</my-option>
-        </my-select>
-        <my-select name="country" label="所在地区" placeholder="请选择国家/地区" clearable required>
-          <my-option value="cn">🇨🇳 中国</my-option>
-          <my-option value="us">🇺🇸 美国</my-option>
-          <my-option value="jp">🇯🇵 日本</my-option>
-          <my-option value="kr">🇰🇷 韩国</my-option>
-          <my-option value="uk">🇬🇧 英国</my-option>
-        </my-select>
-        <my-select name="skills" label="技能标签" placeholder="可多选" multiple searchable>
-          <my-option value="html">HTML</my-option>
-          <my-option value="css">CSS</my-option>
-          <my-option value="js">JavaScript</my-option>
-          <my-option value="ts">TypeScript</my-option>
-          <my-option value="react">React</my-option>
-          <my-option value="vue">Vue</my-option>
-        </my-select>
+        <my-fieldset title="账号信息">
+          <my-input name="username" label="用户名" placeholder="3-20个字符" clearable required rules="required|min:3|max:20" help-text="支持字母、数字、下划线"></my-input>
+          <my-input name="email" label="邮箱" type="email" placeholder="name@example.com" required rules="required|email"></my-input>
+          <my-input name="password" label="密码" type="password" placeholder="至少6位" required rules="required|min:6"></my-input>
+        </my-fieldset>
+        <my-fieldset title="个人资料">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;">
+            <my-select name="gender" label="性别" placeholder="请选择" required>
+              <my-option value="male">男</my-option>
+              <my-option value="female">女</my-option>
+              <my-option value="other">其他</my-option>
+            </my-select>
+            <my-select name="country" label="所在地区" placeholder="请选择国家/地区" clearable required>
+              <my-option value="cn">🇨🇳 中国</my-option>
+              <my-option value="us">🇺🇸 美国</my-option>
+              <my-option value="jp">🇯🇵 日本</my-option>
+              <my-option value="kr">🇰🇷 韩国</my-option>
+              <my-option value="uk">🇬🇧 英国</my-option>
+            </my-select>
+          </div>
+          <my-select name="skills" label="技能标签（多选）" placeholder="可多选" multiple searchable>
+            <my-option value="html">HTML</my-option>
+            <my-option value="css">CSS</my-option>
+            <my-option value="js">JavaScript</my-option>
+            <my-option value="ts">TypeScript</my-option>
+            <my-option value="react">React</my-option>
+            <my-option value="vue">Vue</my-option>
+          </my-select>
+          <my-input name="bio" label="个人简介" placeholder="一句话介绍自己（选填）" maxlength="100"></my-input>
+        </my-fieldset>
         <div slot="actions" style="display:flex;gap:12px;padding-top:8px;">
-          <my-button id="form-submit" block>提交表单</my-button>
+          <my-button id="form-submit" block variant="primary">提交（自动loading）</my-button>
           <my-button block variant="secondary" id="form-reset">重置</my-button>
           <my-button block variant="outline" id="form-validate">仅校验</my-button>
+          <my-button block variant="ghost" id="form-fill">自动填充</my-button>
         </div>
       </my-form>
+      <div id="form-result" style="display:none;margin-top:16px;padding:16px;border-radius:12px;background:#ecfdf5;border:1px solid #a7f3d0;">
+        <div style="font-weight:600;color:#065f46;margin-bottom:8px;">✓ 提交结果摘要</div>
+        <pre id="form-result-content" style="margin:0;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;color:#064e3b;white-space:pre-wrap;word-break:break-all;"></pre>
+      </div>
       <div class="event-log" id="form-log">
         <div class="log-item"><span class="log-time">--:--:--</span><span class="log-type">ready</span>表单事件日志</div>
       </div>
@@ -468,6 +471,7 @@
     import './src/components/form.js';
     import { showToast } from './src/components/toast.js';
     import { MyModal } from './src/components/modal.js';
+    import { MyFieldset } from './src/components/form.js';
 
     function now() {
       const d = new Date();
@@ -632,33 +636,100 @@
       setTimeout(() => showToast.warning('第 3 条'), 400);
     });
 
+    const remoteSelect = document.getElementById('remote-select');
+    const mockRemoteUsers = [
+      { id: 'u1', name: '张三 - 前端工程师' },
+      { id: 'u2', name: '李四 - 后端工程师' },
+      { id: 'u3', name: '王五 - 产品经理' },
+      { id: 'u4', name: '赵六 - UI设计师' },
+      { id: 'u5', name: '钱七 - 测试工程师' },
+      { id: 'u6', name: '孙八 - DevOps工程师' },
+    ];
+    document.getElementById('btn-load-remote').addEventListener('click', async () => {
+      remoteSelect.loading = true;
+      showToast.info('正在加载远程数据...');
+      await new Promise(r => setTimeout(r, 1500));
+      remoteSelect.innerHTML = mockRemoteUsers
+        .map(u => `<my-option value="${u.id}">${u.name}</my-option>`)
+        .join('');
+      remoteSelect.loading = false;
+      showToast.success(`已加载 ${mockRemoteUsers.length} 条远程数据`);
+    });
+    document.getElementById('btn-clear-remote').addEventListener('click', () => {
+      remoteSelect.innerHTML = '';
+      remoteSelect.value = '';
+      showToast.info('远程选项已清空');
+    });
+
     const demoForm = document.getElementById('demo-form');
-    document.getElementById('form-submit').addEventListener('click', () => {
-      const result = demoForm.submit();
-      appendLog('form-log', 'submit', { valid: result.valid, data: result.formData });
+    const formResult = document.getElementById('form-result');
+    const formResultContent = document.getElementById('form-result-content');
+
+    document.getElementById('form-submit').addEventListener('click', async () => {
+      formResult.style.display = 'none';
+      const result = demoForm.submit(async (formData) => {
+        await new Promise(r => setTimeout(r, 1500));
+        return { id: 'USER_' + Math.random().toString(36).slice(2, 8), createdAt: new Date().toISOString() };
+      });
+
+      appendLog('form-log', 'submit', { valid: result.valid, summary: result.summary });
+
       if (result.valid) {
-        showToast.success('表单提交成功！');
+        demoForm.addEventListener('submit-success', (e) => {
+          const fullData = {
+            提交返回值: e.detail.result,
+            表单数据: demoForm.getFormData(),
+            校验摘要: result.summary
+          };
+          const skills = demoForm.getFieldValue('skills');
+          if (typeof skills === 'string' && skills) {
+            fullData.表单数据.skills = skills.split(',').filter(Boolean);
+          }
+          formResultContent.textContent = JSON.stringify(fullData, null, 2);
+          formResult.style.display = 'block';
+          showToast.success(`注册成功！用户ID：${e.detail.result.id}`);
+        }, { once: true });
       } else {
-        const errors = result.results.filter(r => !r.valid).map(r => `${r.name}: ${r.message}`);
-        showToast.error(`校验未通过：${errors.join('；')}`);
+        const errList = Object.entries(result.summary.errors)
+          .map(([k, v]) => `${k}: ${v}`).join('；');
+        showToast.error(`校验未通过：${errList}`);
       }
     });
+
     document.getElementById('form-reset').addEventListener('click', () => {
       demoForm.reset();
+      formResult.style.display = 'none';
       showToast.info('表单已重置');
       appendLog('form-log', 'reset');
     });
+
     document.getElementById('form-validate').addEventListener('click', () => {
       const result = demoForm.validate();
-      appendLog('form-log', 'validate', { valid: result.valid });
+      appendLog('form-log', 'validate', { valid: result.valid, summary: result.summary });
       if (result.valid) {
         showToast.success('校验通过！');
       } else {
-        showToast.error('校验未通过，请检查标红字段');
+        showToast.error(`校验未通过（${result.summary.invalid}个字段），请检查标红字段`);
       }
     });
+
+    document.getElementById('form-fill').addEventListener('click', () => {
+      demoForm.setFieldValue('username', 'demo_user_2024');
+      demoForm.setFieldValue('email', 'demo@example.com');
+      demoForm.setFieldValue('password', 'secret123');
+      demoForm.setFieldValue('gender', 'male');
+      demoForm.setFieldValue('country', 'cn');
+      demoForm.setFieldValue('skills', 'html,css,js,ts');
+      demoForm.setFieldValue('bio', '热爱前端开发的工程师');
+      showToast.success('已自动填充演示数据');
+      appendLog('form-log', 'auto-fill');
+    });
+
     demoForm.addEventListener('valid-submit', e => {
       appendLog('form-log', 'valid-submit', e.detail);
+    });
+    demoForm.addEventListener('submit-success', e => {
+      appendLog('form-log', 'submit-success', e.detail);
     });
   </script>
 </body>

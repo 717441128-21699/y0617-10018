@@ -170,6 +170,32 @@ template.innerHTML = `
   border-color: var(--ui-color-border-focus);
 }
 
+.loading-state {
+  padding: var(--ui-spacing-lg);
+  text-align: center;
+  color: var(--ui-color-text-tertiary);
+  font-size: var(--ui-font-size-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ui-spacing-sm);
+}
+.loading-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--ui-color-text-tertiary);
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.options-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
 .option {
   display: flex;
   align-items: center;
@@ -290,9 +316,15 @@ template.innerHTML = `
       </svg>
     </span>
   </div>
-  <ul class="dropdown" role="listbox">
+  <div class="dropdown" role="listbox">
     <input class="search-input" type="text" placeholder="搜索..." style="display:none;" />
-  </ul>
+    <div class="loading-state" style="display:none;">
+      <span class="loading-spinner"></span>
+      <span>加载中...</span>
+    </div>
+    <div class="empty-state" style="display:none;"></div>
+    <ul class="options-list"></ul>
+  </div>
   <div class="help-text" style="display:none;"></div>
   <div class="error-text" style="display:none;"></div>
 </div>
@@ -300,7 +332,7 @@ template.innerHTML = `
 
 export class MySelect extends HTMLElement {
   static get observedAttributes() {
-    return ['label', 'placeholder', 'value', 'size', 'disabled', 'required', 'error', 'help-text', 'clearable', 'block', 'name', 'multiple', 'searchable'];
+    return ['label', 'placeholder', 'value', 'size', 'disabled', 'required', 'error', 'help-text', 'clearable', 'block', 'name', 'multiple', 'searchable', 'loading'];
   }
 
   constructor() {
@@ -316,11 +348,15 @@ export class MySelect extends HTMLElement {
     this._tagsContainer = this._shadowRoot.querySelector('.tags-container');
     this._dropdown = this._shadowRoot.querySelector('.dropdown');
     this._searchInput = this._shadowRoot.querySelector('.search-input');
+    this._loadingStateEl = this._shadowRoot.querySelector('.loading-state');
+    this._emptyStateEl = this._shadowRoot.querySelector('.empty-state');
+    this._optionsListEl = this._shadowRoot.querySelector('.options-list');
     this._clearBtn = this._shadowRoot.querySelector('.clear-btn');
     this._helpText = this._shadowRoot.querySelector('.help-text');
     this._errorText = this._shadowRoot.querySelector('.error-text');
     this._options = [];
     this._selectedValues = [];
+    this._optionEls = [];
     this._focusedIndex = -1;
     this._isOpen = false;
     this._handleOutsideClick = this._handleOutsideClick.bind(this);
@@ -355,8 +391,13 @@ export class MySelect extends HTMLElement {
     if (this._slotObserver) this._slotObserver.disconnect();
   }
 
-  attributeChangedCallback() {
-    if (this._container) this._render();
+  attributeChangedCallback(name, oldValue, newValue) {
+    if (this._container) {
+      if (name === 'loading') {
+        this._renderEmptyState();
+      }
+      this._render();
+    }
   }
 
   _syncOptions() {
@@ -393,43 +434,14 @@ export class MySelect extends HTMLElement {
   }
 
   _getVisibleOptions() {
-    return this._dropdown.querySelectorAll('.option:not(.disabled):not([style*="display: none"])');
+    return this._optionsListEl.querySelectorAll('.option:not(.disabled):not([style*="display: none"])');
   }
 
   _renderDropdown() {
-    const currentSearch = this._searchInput.value.toLowerCase();
-    const searchActive = this.searchable && this._isOpen;
-
-    this._dropdown.innerHTML = '';
-
-    if (this.searchable) {
-      const searchEl = document.createElement('input');
-      searchEl.className = 'search-input';
-      searchEl.type = 'text';
-      searchEl.placeholder = '搜索...';
-      searchEl.style.display = this._isOpen ? 'block' : 'none';
-      searchEl.value = this._searchInput.value || '';
-      searchEl.addEventListener('input', this._handleSearchInput);
-      searchEl.addEventListener('keydown', this._handleSearchKeydown);
-      this._searchInput = searchEl;
-      this._dropdown.appendChild(searchEl);
-    }
-
-    if (this._options.length === 0) {
-      const empty = document.createElement('li');
-      empty.className = 'empty-state';
-      empty.textContent = '暂无选项';
-      this._dropdown.appendChild(empty);
-      return;
-    }
-
-    let hasVisible = false;
+    this._optionsListEl.innerHTML = '';
+    this._optionEls = [];
 
     this._options.forEach(opt => {
-      if (searchActive && currentSearch && !opt.label.toLowerCase().includes(currentSearch)) {
-        return;
-      }
-      hasVisible = true;
       const li = document.createElement('li');
       li.className = 'option';
       li.dataset.value = opt.value;
@@ -454,15 +466,44 @@ export class MySelect extends HTMLElement {
           this._selectOption(opt.value, opt.label);
         });
       }
-      this._dropdown.appendChild(li);
+      this._optionsListEl.appendChild(li);
+      this._optionEls.push(li);
     });
 
-    if (!hasVisible) {
-      const empty = document.createElement('li');
-      empty.className = 'empty-state';
-      empty.textContent = '暂无选项';
-      this._dropdown.appendChild(empty);
+    this._renderEmptyState();
+  }
+
+  _renderEmptyState() {
+    const searchKeyword = this.searchable ? this._searchInput.value.toLowerCase() : '';
+
+    if (this.loading) {
+      this._loadingStateEl.style.display = 'flex';
+      this._emptyStateEl.style.display = 'none';
+      this._optionsListEl.style.display = 'none';
+      return;
     }
+
+    this._loadingStateEl.style.display = 'none';
+
+    if (this._options.length === 0) {
+      this._emptyStateEl.style.display = 'block';
+      this._emptyStateEl.textContent = '暂无选项';
+      this._optionsListEl.style.display = 'none';
+      return;
+    }
+
+    if (searchKeyword) {
+      const hasVisible = this._options.some(opt => opt.label.toLowerCase().includes(searchKeyword));
+      if (!hasVisible) {
+        this._emptyStateEl.style.display = 'block';
+        this._emptyStateEl.textContent = '未找到匹配结果';
+        this._optionsListEl.style.display = 'none';
+        return;
+      }
+    }
+
+    this._emptyStateEl.style.display = 'none';
+    this._optionsListEl.style.display = 'block';
   }
 
   _selectOption(value, label) {
@@ -476,7 +517,7 @@ export class MySelect extends HTMLElement {
       const newValue = this._selectedValues.join(',');
       this.setAttribute('value', newValue);
       this._updateTags();
-      this._renderDropdown();
+      this._updateOptionSelectedStates();
       const labels = this._selectedValues.map(v => {
         const opt = this._options.find(o => o.value === v);
         return opt ? opt.label : v;
@@ -486,18 +527,60 @@ export class MySelect extends HTMLElement {
         composed: true,
         detail: { value: newValue, values: [...this._selectedValues], labels }
       }));
+
+      if (this.error) {
+        const hasSelection = this._selectedValues.length > 0;
+        if (!this.required || hasSelection) {
+          this.resetValidation();
+          this.dispatchEvent(new CustomEvent('validation-change', {
+            bubbles: true,
+            composed: true,
+            detail: { valid: true }
+          }));
+        }
+      }
     } else {
       this.value = value;
       this._valueText.textContent = label;
       this._valueText.classList.remove('placeholder');
-      this._renderDropdown();
+      this._updateOptionSelectedStates();
       this.close();
       this.dispatchEvent(new CustomEvent('change', {
         bubbles: true,
         composed: true,
         detail: { value, label }
       }));
+
+      if (this.error) {
+        this.resetValidation();
+        this.dispatchEvent(new CustomEvent('validation-change', {
+          bubbles: true,
+          composed: true,
+          detail: { valid: true }
+        }));
+      }
     }
+  }
+
+  _updateOptionSelectedStates() {
+    this._optionEls.forEach(li => {
+      const value = li.dataset.value;
+      li.classList.remove('selected');
+      const existingCheck = li.querySelector('.option-check');
+      if (existingCheck) existingCheck.remove();
+
+      if (this.multiple) {
+        if (this._selectedValues.includes(value)) {
+          li.classList.add('selected');
+          const check = document.createElement('span');
+          check.className = 'option-check';
+          check.textContent = '\u2713';
+          li.insertBefore(check, li.firstChild);
+        }
+      } else {
+        if (value === this.value) li.classList.add('selected');
+      }
+    });
   }
 
   _updateTags() {
@@ -538,7 +621,7 @@ export class MySelect extends HTMLElement {
     const newValue = this._selectedValues.join(',');
     this.setAttribute('value', newValue);
     this._updateTags();
-    this._renderDropdown();
+    this._updateOptionSelectedStates();
     const labels = this._selectedValues.map(v => {
       const opt = this._options.find(o => o.value === v);
       return opt ? opt.label : v;
@@ -548,6 +631,20 @@ export class MySelect extends HTMLElement {
       composed: true,
       detail: { value: newValue, values: [...this._selectedValues], labels }
     }));
+
+    if (this.error) {
+      const isSatisfied = this.multiple
+        ? this._selectedValues.length > 0
+        : (this.value && this.value !== '');
+      if (!this.required || isSatisfied) {
+        this.resetValidation();
+        this.dispatchEvent(new CustomEvent('validation-change', {
+          bubbles: true,
+          composed: true,
+          detail: { valid: true }
+        }));
+      }
+    }
   }
 
   _onToggle(e) {
@@ -569,7 +666,7 @@ export class MySelect extends HTMLElement {
       this._valueText.textContent = this.placeholder || '请选择';
       this._valueText.classList.add('placeholder');
     }
-    this._renderDropdown();
+    this._updateOptionSelectedStates();
     this._updateClearBtn();
     this.dispatchEvent(new CustomEvent('clear', {
       bubbles: true,
@@ -587,6 +684,20 @@ export class MySelect extends HTMLElement {
         composed: true,
         detail: { value: '', label: '' }
       }));
+    }
+
+    if (this.error) {
+      const isSatisfied = this.multiple
+        ? this._selectedValues.length > 0
+        : (this.value && this.value !== '');
+      if (!this.required || isSatisfied) {
+        this.resetValidation();
+        this.dispatchEvent(new CustomEvent('validation-change', {
+          bubbles: true,
+          composed: true,
+          detail: { valid: true }
+        }));
+      }
     }
   }
 
@@ -641,7 +752,18 @@ export class MySelect extends HTMLElement {
 
   _handleSearchInput() {
     this._focusedIndex = -1;
-    this._renderDropdown();
+    const searchKeyword = this._searchInput.value.toLowerCase();
+
+    this._optionEls.forEach((li, index) => {
+      const opt = this._options[index];
+      if (opt && searchKeyword && !opt.label.toLowerCase().includes(searchKeyword)) {
+        li.style.display = 'none';
+      } else {
+        li.style.display = '';
+      }
+    });
+
+    this._renderEmptyState();
   }
 
   _handleSearchKeydown(e) {
@@ -658,14 +780,24 @@ export class MySelect extends HTMLElement {
           if (visible[this._focusedIndex]) {
             const value = visible[this._focusedIndex].dataset.value;
             const opt = this._options.find(o => o.value === value);
-            if (opt) this._selectOption(opt.value, opt.label);
+            if (opt) {
+              this._selectOption(opt.value, opt.label);
+              if (this.multiple) {
+                this._searchInput.focus();
+              }
+            }
           }
         } else {
           const visible = this._getVisibleOptions();
           if (visible.length > 0) {
             const value = visible[0].dataset.value;
             const opt = this._options.find(o => o.value === value);
-            if (opt) this._selectOption(opt.value, opt.label);
+            if (opt) {
+              this._selectOption(opt.value, opt.label);
+              if (this.multiple) {
+                this._searchInput.focus();
+              }
+            }
           }
         }
         break;
@@ -715,7 +847,6 @@ export class MySelect extends HTMLElement {
     this._focusedIndex = -1;
     this._container.classList.add('open');
     this._positionDropdown();
-    this._renderDropdown();
     requestAnimationFrame(() => {
       this._dropdown.classList.add('open');
       if (this.searchable) {
@@ -723,6 +854,7 @@ export class MySelect extends HTMLElement {
         this._searchInput.focus();
       }
     });
+    this._renderEmptyState();
     this.dispatchEvent(new CustomEvent('open', { bubbles: true, composed: true }));
   }
 
@@ -736,7 +868,20 @@ export class MySelect extends HTMLElement {
       this._searchInput.value = '';
       this._searchInput.style.display = 'none';
     }
+    this._optionEls.forEach(li => {
+      li.style.display = '';
+      li.classList.remove('focused');
+    });
     this.dispatchEvent(new CustomEvent('close', { bubbles: true, composed: true }));
+  }
+
+  focus() {
+    if (this.disabled) return;
+    if (this._isOpen && this.searchable) {
+      this._searchInput.focus();
+    } else {
+      this._container.focus();
+    }
   }
 
   _updateClearBtn() {
@@ -793,15 +938,30 @@ export class MySelect extends HTMLElement {
       if (this.multiple) {
         if (this._selectedValues.length === 0) {
           this.error = '请选择此项';
+          this.dispatchEvent(new CustomEvent('validation-change', {
+            bubbles: true,
+            composed: true,
+            detail: { valid: false }
+          }));
           return { valid: false, message: '请选择此项' };
         }
       } else {
         if (!this.value || this.value === '') {
           this.error = '请选择此项';
+          this.dispatchEvent(new CustomEvent('validation-change', {
+            bubbles: true,
+            composed: true,
+            detail: { valid: false }
+          }));
           return { valid: false, message: '请选择此项' };
         }
       }
     }
+    this.dispatchEvent(new CustomEvent('validation-change', {
+      bubbles: true,
+      composed: true,
+      detail: { valid: true }
+    }));
     return { valid: true, message: '' };
   }
 
@@ -819,7 +979,7 @@ export class MySelect extends HTMLElement {
       this._valueText.textContent = this.placeholder || '请选择';
       this._valueText.classList.add('placeholder');
     }
-    this._renderDropdown();
+    this._updateOptionSelectedStates();
     this.resetValidation();
   }
 
@@ -842,7 +1002,7 @@ export class MySelect extends HTMLElement {
       }
       this.setAttribute('value', typeof val === 'string' ? val : '');
       this._updateTags();
-      this._renderDropdown();
+      this._updateOptionSelectedStates();
       this._updateClearBtn();
     } else {
       this.setAttribute('value', val);
@@ -853,7 +1013,7 @@ export class MySelect extends HTMLElement {
           this._valueText.classList.remove('placeholder');
         }
       }
-      this._renderDropdown();
+      this._updateOptionSelectedStates();
       this._updateClearBtn();
     }
   }
@@ -895,6 +1055,9 @@ export class MySelect extends HTMLElement {
 
   get searchable() { return this.hasAttribute('searchable'); }
   set searchable(val) { val ? this.setAttribute('searchable', '') : this.removeAttribute('searchable'); }
+
+  get loading() { return this.hasAttribute('loading'); }
+  set loading(val) { val ? this.setAttribute('loading', '') : this.removeAttribute('loading'); }
 }
 
 customElements.define('my-select', MySelect);

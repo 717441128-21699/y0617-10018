@@ -33,6 +33,10 @@ export interface SelectChangeDetail {
   label?: string;
 }
 
+export interface ValidationChangeDetail {
+  valid: boolean;
+}
+
 export interface ModalCloseDetail {
   reason: CloseReason;
 }
@@ -67,14 +71,33 @@ export interface FormValidateResult {
   results: FieldValidateResult[];
 }
 
+export interface FormSubmitSummary {
+  total: number;
+  valid: number;
+  invalid: number;
+  invalidFields: string[];
+  errors: { [name: string]: string };
+}
+
 export interface FormSubmitDetail {
   valid: boolean;
-  formData: Record<string, string>;
+  formData: Record<string, any>;
   results: FieldValidateResult[];
+  summary: FormSubmitSummary;
 }
 
 export interface FormValidSubmitDetail {
-  formData: Record<string, string>;
+  formData: Record<string, any>;
+}
+
+export interface FormSubmitSuccessDetail {
+  formData: Record<string, any>;
+  result: any;
+}
+
+export interface FormSubmitErrorDetail {
+  formData: Record<string, any>;
+  error: any;
 }
 
 export interface MyButtonElement extends HTMLElement {
@@ -140,14 +163,17 @@ export interface MySelectElement extends HTMLElement {
   multiple: boolean;
   block: boolean;
   name: string | null;
+  loading: boolean;
   open(): void;
   close(): void;
+  focus(): void;
   validate(): ValidationResult;
   resetValidation(): void;
   reset(): void;
   addEventListener<K extends keyof HTMLElementEventMap>(type: K, listener: (ev: HTMLElementEventMap[K]) => void, options?: boolean | AddEventListenerOptions): void;
   addEventListener(type: 'change', listener: (ev: CustomEvent<SelectChangeDetail>) => void, options?: boolean | AddEventListenerOptions): void;
   addEventListener(type: 'open' | 'close' | 'clear', listener: (ev: CustomEvent) => void, options?: boolean | AddEventListenerOptions): void;
+  addEventListener(type: 'validation-change', listener: (ev: CustomEvent<ValidationChangeDetail>) => void, options?: boolean | AddEventListenerOptions): void;
 }
 
 export interface MyModalElement extends HTMLElement {
@@ -182,12 +208,23 @@ export interface MyFormElement extends HTMLElement {
   validate(): FormValidateResult;
   reset(): void;
   resetValidation(): void;
-  submit(): FormSubmitDetail & { results: FieldValidateResult[] };
-  getFormData(): Record<string, string>;
+  submit(callback?: (formData: Record<string, any>) => Promise<any> | void): FormSubmitDetail & { results: FieldValidateResult[]; summary: FormSubmitSummary };
+  getFormData(): Record<string, any>;
+  setFieldValue(name: string, value: any): void;
+  getFieldValue(name: string): any;
+  setFieldError(name: string, error: string | null): void;
   addEventListener<K extends keyof HTMLElementEventMap>(type: K, listener: (ev: HTMLElementEventMap[K]) => void, options?: boolean | AddEventListenerOptions): void;
   addEventListener(type: 'submit', listener: (ev: CustomEvent<FormSubmitDetail>) => void, options?: boolean | AddEventListenerOptions): void;
   addEventListener(type: 'valid-submit', listener: (ev: CustomEvent<FormValidSubmitDetail>) => void, options?: boolean | AddEventListenerOptions): void;
+  addEventListener(type: 'submit-success', listener: (ev: CustomEvent<FormSubmitSuccessDetail>) => void, options?: boolean | AddEventListenerOptions): void;
+  addEventListener(type: 'submit-error', listener: (ev: CustomEvent<FormSubmitErrorDetail>) => void, options?: boolean | AddEventListenerOptions): void;
+  addEventListener(type: 'validation-change', listener: (ev: CustomEvent) => void, options?: boolean | AddEventListenerOptions): void;
   addEventListener(type: 'validate' | 'reset', listener: (ev: CustomEvent) => void, options?: boolean | AddEventListenerOptions): void;
+}
+
+export interface MyFieldsetElement extends HTMLElement {
+  title: string | null;
+  disabled: boolean;
 }
 
 export interface ShowToast {
@@ -278,6 +315,7 @@ declare global {
     'my-modal': MyModalElement;
     'my-toast': MyToastElement;
     'my-form': MyFormElement;
+    'my-fieldset': MyFieldsetElement;
   }
 }
 
@@ -315,6 +353,11 @@ export const MyToast: {
 export const MyForm: {
   prototype: MyFormElement;
   new (): MyFormElement;
+};
+
+export const MyFieldset: {
+  prototype: MyFieldsetElement;
+  new (): MyFieldsetElement;
 };
 
 export const showToast: ShowToast;
