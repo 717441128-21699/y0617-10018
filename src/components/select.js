@@ -194,6 +194,24 @@ template.innerHTML = `
   list-style: none;
   margin: 0;
   padding: 0;
+  position: relative;
+}
+.options-list.loading {
+  pointer-events: none;
+  opacity: 0.6;
+}
+.options-list.loading::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: transparent;
+}
+
+.load-more-hint {
+  padding: var(--ui-spacing-sm);
+  text-align: center;
+  color: var(--ui-color-text-tertiary);
+  font-size: var(--ui-font-size-xs);
 }
 
 .option {
@@ -324,6 +342,7 @@ template.innerHTML = `
     </div>
     <div class="empty-state" style="display:none;"></div>
     <ul class="options-list"></ul>
+    <div class="load-more-hint" style="display:none;">滚动加载更多</div>
   </div>
   <div class="help-text" style="display:none;"></div>
   <div class="error-text" style="display:none;"></div>
@@ -332,7 +351,7 @@ template.innerHTML = `
 
 export class MySelect extends HTMLElement {
   static get observedAttributes() {
-    return ['label', 'placeholder', 'value', 'size', 'disabled', 'required', 'error', 'help-text', 'clearable', 'block', 'name', 'multiple', 'searchable', 'loading'];
+    return ['label', 'placeholder', 'value', 'size', 'disabled', 'required', 'error', 'help-text', 'clearable', 'block', 'name', 'multiple', 'searchable', 'loading', 'remote', 'has-more'];
   }
 
   constructor() {
@@ -354,15 +373,21 @@ export class MySelect extends HTMLElement {
     this._clearBtn = this._shadowRoot.querySelector('.clear-btn');
     this._helpText = this._shadowRoot.querySelector('.help-text');
     this._errorText = this._shadowRoot.querySelector('.error-text');
+    this._loadMoreHint = this._shadowRoot.querySelector('.load-more-hint');
     this._options = [];
     this._selectedValues = [];
     this._optionEls = [];
     this._focusedIndex = -1;
     this._isOpen = false;
+    this._fetchTimer = null;
+    this._currentPage = 1;
+    this._scrollBound = false;
+    this._hasFetchedOnOpen = false;
     this._handleOutsideClick = this._handleOutsideClick.bind(this);
     this._handleKeydown = this._handleKeydown.bind(this);
     this._handleSearchInput = this._handleSearchInput.bind(this);
     this._handleSearchKeydown = this._handleSearchKeydown.bind(this);
+    this._handleScroll = this._handleScroll.bind(this);
     this._slotObserver = null;
   }
 
@@ -388,6 +413,14 @@ export class MySelect extends HTMLElement {
     this._searchInput.removeEventListener('input', this._handleSearchInput);
     this._searchInput.removeEventListener('keydown', this._handleSearchKeydown);
     document.removeEventListener('mousedown', this._handleOutsideClick);
+    if (this._dropdown && this._scrollBound) {
+      this._dropdown.removeEventListener('scroll', this._handleScroll);
+      this._scrollBound = false;
+    }
+    if (this._fetchTimer) {
+      clearTimeout(this._fetchTimer);
+      this._fetchTimer = null;
+    }
     if (this._slotObserver) this._slotObserver.disconnect();
   }
 
@@ -395,6 +428,9 @@ export class MySelect extends HTMLElement {
     if (this._container) {
       if (name === 'loading') {
         this._renderEmptyState();
+      }
+      if (name === 'has-more') {
+        this._renderLoadMoreHint();
       }
       this._render();
     }
@@ -471,19 +507,30 @@ export class MySelect extends HTMLElement {
     });
 
     this._renderEmptyState();
+    this._renderLoadMoreHint();
   }
 
   _renderEmptyState() {
     const searchKeyword = this.searchable ? this._searchInput.value.toLowerCase() : '';
 
+    if (this.remote && this.loading) {
+      this._loadingStateEl.style.display = 'flex';
+      this._emptyStateEl.style.display = 'none';
+      this._optionsListEl.style.display = 'block';
+      this._optionsListEl.classList.add('loading');
+      return;
+    }
+
     if (this.loading) {
       this._loadingStateEl.style.display = 'flex';
       this._emptyStateEl.style.display = 'none';
       this._optionsListEl.style.display = 'none';
+      this._optionsListEl.classList.remove('loading');
       return;
     }
 
     this._loadingStateEl.style.display = 'none';
+    this._optionsListEl.classList.remove('loading');
 
     if (this._options.length === 0) {
       this._emptyStateEl.style.display = 'block';
@@ -504,6 +551,81 @@ export class MySelect extends HTMLElement {
 
     this._emptyStateEl.style.display = 'none';
     this._optionsListEl.style.display = 'block';
+  }
+
+  _renderLoadMoreHint() {
+    if (this.hasMore && this._isOpen && this._options.length > 0) {
+      this._loadMoreHint.style.display = 'block';
+    } else {
+      this._loadMoreHint.style.display = 'none';
+    }
+  }
+
+  _dispatchFetchOptions(resetPage = true) {
+    if (resetPage) {
+      this._currentPage = 1;
+    }
+    this.loading = true;
+    const keyword = this.searchable ? this._searchInput.value : '';
+    this.dispatchEvent(new CustomEvent('fetch-options', {
+      bubbles: true,
+      composed: true,
+      detail: { keyword, page: this._currentPage, pageSize: 20 }
+    }));
+  }
+
+  _dispatchLoadMore() {
+    this._currentPage += 1;
+    this.loading = true;
+    const keyword = this.searchable ? this._searchInput.value : '';
+    this.dispatchEvent(new CustomEvent('load-more', {
+      bubbles: true,
+      composed: true,
+      detail: { keyword, page: this._currentPage, pageSize: 20 }
+    }));
+  }
+
+  setOptions(options) {
+    this.clearOptions();
+    if (!options || !options.length) {
+      this._syncOptions();
+      this.loading = false;
+      return;
+    }
+    const html = options.map(opt => {
+      const disabledAttr = opt.disabled ? ' disabled' : '';
+      const val = (opt.value == null ? '' : String(opt.value)).replace(/"/g, '&quot;');
+      const label = (opt.label == null ? '' : String(opt.label))
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      return `<my-option value="${val}"${disabledAttr}>${label}</my-option>`;
+    }).join('');
+    this.insertAdjacentHTML('beforeend', html);
+    this._syncOptions();
+    this.loading = false;
+  }
+
+  appendOptions(options) {
+    if (!options || !options.length) {
+      this.loading = false;
+      return;
+    }
+    const html = options.map(opt => {
+      const disabledAttr = opt.disabled ? ' disabled' : '';
+      const val = (opt.value == null ? '' : String(opt.value)).replace(/"/g, '&quot;');
+      const label = (opt.label == null ? '' : String(opt.label))
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      return `<my-option value="${val}"${disabledAttr}>${label}</my-option>`;
+    }).join('');
+    this.insertAdjacentHTML('beforeend', html);
+    this._syncOptions();
+    this.loading = false;
+  }
+
+  clearOptions() {
+    const optionEls = this.querySelectorAll('my-option');
+    optionEls.forEach(el => el.remove());
+    this._options = [];
+    this._syncOptions();
   }
 
   _selectOption(value, label) {
@@ -528,17 +650,14 @@ export class MySelect extends HTMLElement {
         detail: { value: newValue, values: [...this._selectedValues], labels }
       }));
 
-      if (this.error) {
-        const hasSelection = this._selectedValues.length > 0;
-        if (!this.required || hasSelection) {
-          this.resetValidation();
-          this.dispatchEvent(new CustomEvent('validation-change', {
-            bubbles: true,
-            composed: true,
-            detail: { valid: true }
-          }));
-        }
-      }
+      this.resetValidation();
+      const hasSelection = this._selectedValues.length > 0;
+      const isSatisfied = !this.required || hasSelection;
+      this.dispatchEvent(new CustomEvent('validation-change', {
+        bubbles: true,
+        composed: true,
+        detail: { valid: isSatisfied }
+      }));
     } else {
       this.value = value;
       this._valueText.textContent = label;
@@ -551,14 +670,12 @@ export class MySelect extends HTMLElement {
         detail: { value, label }
       }));
 
-      if (this.error) {
-        this.resetValidation();
-        this.dispatchEvent(new CustomEvent('validation-change', {
-          bubbles: true,
-          composed: true,
-          detail: { valid: true }
-        }));
-      }
+      this.resetValidation();
+      this.dispatchEvent(new CustomEvent('validation-change', {
+        bubbles: true,
+        composed: true,
+        detail: { valid: true }
+      }));
     }
   }
 
@@ -632,19 +749,16 @@ export class MySelect extends HTMLElement {
       detail: { value: newValue, values: [...this._selectedValues], labels }
     }));
 
-    if (this.error) {
-      const isSatisfied = this.multiple
-        ? this._selectedValues.length > 0
-        : (this.value && this.value !== '');
-      if (!this.required || isSatisfied) {
-        this.resetValidation();
-        this.dispatchEvent(new CustomEvent('validation-change', {
-          bubbles: true,
-          composed: true,
-          detail: { valid: true }
-        }));
-      }
-    }
+    this.resetValidation();
+    const isSatisfied = this.multiple
+      ? this._selectedValues.length > 0
+      : (this.value && this.value !== '');
+    const valid = !this.required || isSatisfied;
+    this.dispatchEvent(new CustomEvent('validation-change', {
+      bubbles: true,
+      composed: true,
+      detail: { valid }
+    }));
   }
 
   _onToggle(e) {
@@ -686,19 +800,16 @@ export class MySelect extends HTMLElement {
       }));
     }
 
-    if (this.error) {
-      const isSatisfied = this.multiple
-        ? this._selectedValues.length > 0
-        : (this.value && this.value !== '');
-      if (!this.required || isSatisfied) {
-        this.resetValidation();
-        this.dispatchEvent(new CustomEvent('validation-change', {
-          bubbles: true,
-          composed: true,
-          detail: { valid: true }
-        }));
-      }
-    }
+    this.resetValidation();
+    const isSatisfied = this.multiple
+      ? this._selectedValues.length > 0
+      : (this.value && this.value !== '');
+    const valid = !this.required || isSatisfied;
+    this.dispatchEvent(new CustomEvent('validation-change', {
+      bubbles: true,
+      composed: true,
+      detail: { valid }
+    }));
   }
 
   _handleOutsideClick(e) {
@@ -706,6 +817,17 @@ export class MySelect extends HTMLElement {
     const path = e.composedPath();
     if (!path.includes(this) && !path.includes(this._dropdown)) {
       this.close();
+    }
+  }
+
+  _handleScroll() {
+    if (!this.hasMore || !this.remote || this.loading) return;
+
+    const dropdown = this._dropdown;
+    const distanceToBottom = dropdown.scrollHeight - dropdown.scrollTop - dropdown.clientHeight;
+
+    if (distanceToBottom <= 30) {
+      this._dispatchLoadMore();
     }
   }
 
@@ -754,14 +876,24 @@ export class MySelect extends HTMLElement {
     this._focusedIndex = -1;
     const searchKeyword = this._searchInput.value.toLowerCase();
 
-    this._optionEls.forEach((li, index) => {
-      const opt = this._options[index];
-      if (opt && searchKeyword && !opt.label.toLowerCase().includes(searchKeyword)) {
-        li.style.display = 'none';
-      } else {
-        li.style.display = '';
+    if (this.remote && this.searchable) {
+      if (this._fetchTimer) {
+        clearTimeout(this._fetchTimer);
+        this._fetchTimer = null;
       }
-    });
+      this._fetchTimer = setTimeout(() => {
+        this._dispatchFetchOptions(true);
+      }, 250);
+    } else {
+      this._optionEls.forEach((li, index) => {
+        const opt = this._options[index];
+        if (opt && searchKeyword && !opt.label.toLowerCase().includes(searchKeyword)) {
+          li.style.display = 'none';
+        } else {
+          li.style.display = '';
+        }
+      });
+    }
 
     this._renderEmptyState();
   }
@@ -847,6 +979,12 @@ export class MySelect extends HTMLElement {
     this._focusedIndex = -1;
     this._container.classList.add('open');
     this._positionDropdown();
+
+    if (!this._scrollBound) {
+      this._dropdown.addEventListener('scroll', this._handleScroll);
+      this._scrollBound = true;
+    }
+
     requestAnimationFrame(() => {
       this._dropdown.classList.add('open');
       if (this.searchable) {
@@ -854,7 +992,14 @@ export class MySelect extends HTMLElement {
         this._searchInput.focus();
       }
     });
+
+    if (this.remote && this.searchable && !this._hasFetchedOnOpen) {
+      this._hasFetchedOnOpen = true;
+      this._dispatchFetchOptions(true);
+    }
+
     this._renderEmptyState();
+    this._renderLoadMoreHint();
     this.dispatchEvent(new CustomEvent('open', { bubbles: true, composed: true }));
   }
 
@@ -864,6 +1009,12 @@ export class MySelect extends HTMLElement {
     this._focusedIndex = -1;
     this._container.classList.remove('open');
     this._dropdown.classList.remove('open');
+
+    if (this._scrollBound) {
+      this._dropdown.removeEventListener('scroll', this._handleScroll);
+      this._scrollBound = false;
+    }
+
     if (this.searchable) {
       this._searchInput.value = '';
       this._searchInput.style.display = 'none';
@@ -872,6 +1023,7 @@ export class MySelect extends HTMLElement {
       li.style.display = '';
       li.classList.remove('focused');
     });
+    this._renderLoadMoreHint();
     this.dispatchEvent(new CustomEvent('close', { bubbles: true, composed: true }));
   }
 
@@ -882,6 +1034,40 @@ export class MySelect extends HTMLElement {
     } else {
       this._container.focus();
     }
+  }
+
+  getSelectedLabels() {
+    if (this.multiple) {
+      return this._selectedValues.map(v => {
+        const opt = this._options.find(o => o.value === v);
+        return opt ? opt.label : v;
+      });
+    } else {
+      if (!this.value || this.value === '') return [];
+      const opt = this._options.find(o => o.value === this.value);
+      return opt ? [opt.label] : [this.value];
+    }
+  }
+
+  getSelectedOptions() {
+    if (this.multiple) {
+      return this._selectedValues.map(v => {
+        const opt = this._options.find(o => o.value === v);
+        return opt
+          ? { value: opt.value, label: opt.label, disabled: opt.disabled }
+          : { value: v, label: v, disabled: false };
+      });
+    } else {
+      if (!this.value || this.value === '') return [];
+      const opt = this._options.find(o => o.value === this.value);
+      return opt
+        ? [{ value: opt.value, label: opt.label, disabled: opt.disabled }]
+        : [{ value: this.value, label: this.value, disabled: false }];
+    }
+  }
+
+  getFieldDisplay() {
+    return this.getSelectedLabels().join(', ');
   }
 
   _updateClearBtn() {
@@ -934,35 +1120,37 @@ export class MySelect extends HTMLElement {
   }
 
   validate() {
+    let valid = true;
+    let message = '';
+
     if (this.required) {
       if (this.multiple) {
         if (this._selectedValues.length === 0) {
-          this.error = '请选择此项';
-          this.dispatchEvent(new CustomEvent('validation-change', {
-            bubbles: true,
-            composed: true,
-            detail: { valid: false }
-          }));
-          return { valid: false, message: '请选择此项' };
+          valid = false;
+          message = '请选择此项';
         }
       } else {
-        if (!this.value || this.value === '') {
-          this.error = '请选择此项';
-          this.dispatchEvent(new CustomEvent('validation-change', {
-            bubbles: true,
-            composed: true,
-            detail: { valid: false }
-          }));
-          return { valid: false, message: '请选择此项' };
+        const attrVal = this.getAttribute('value');
+        if (!attrVal || attrVal === '') {
+          valid = false;
+          message = '请选择此项';
         }
       }
     }
+
+    if (valid) {
+      this.removeAttribute('error');
+    } else {
+      this.error = message;
+    }
+
     this.dispatchEvent(new CustomEvent('validation-change', {
       bubbles: true,
       composed: true,
-      detail: { valid: true }
+      detail: { valid }
     }));
-    return { valid: true, message: '' };
+
+    return { valid, message };
   }
 
   resetValidation() {
@@ -1016,6 +1204,17 @@ export class MySelect extends HTMLElement {
       this._updateOptionSelectedStates();
       this._updateClearBtn();
     }
+
+    this.resetValidation();
+    const isSatisfied = this.multiple
+      ? this._selectedValues.length > 0
+      : (this.value && this.value !== '');
+    const valid = !this.required || isSatisfied;
+    this.dispatchEvent(new CustomEvent('validation-change', {
+      bubbles: true,
+      composed: true,
+      detail: { valid }
+    }));
   }
 
   get values() {
@@ -1058,6 +1257,12 @@ export class MySelect extends HTMLElement {
 
   get loading() { return this.hasAttribute('loading'); }
   set loading(val) { val ? this.setAttribute('loading', '') : this.removeAttribute('loading'); }
+
+  get remote() { return this.hasAttribute('remote'); }
+  set remote(val) { val ? this.setAttribute('remote', '') : this.removeAttribute('remote'); }
+
+  get hasMore() { return this.hasAttribute('has-more'); }
+  set hasMore(val) { val ? this.setAttribute('has-more', '') : this.removeAttribute('has-more'); }
 }
 
 customElements.define('my-select', MySelect);

@@ -33,6 +33,24 @@ export interface SelectChangeDetail {
   label?: string;
 }
 
+export interface FetchOptionsDetail {
+  keyword: string;
+  page: number;
+  pageSize: number;
+}
+
+export interface LoadMoreDetail {
+  keyword: string;
+  page: number;
+  pageSize: number;
+}
+
+export interface OptionObject {
+  value: string;
+  label: string;
+  disabled?: boolean;
+}
+
 export interface ValidationChangeDetail {
   valid: boolean;
 }
@@ -77,13 +95,24 @@ export interface FormSubmitSummary {
   invalid: number;
   invalidFields: string[];
   errors: { [name: string]: string };
+  changedFields?: string[];
 }
+
+export interface ChangedFieldDetail {
+  oldValue: any;
+  newValue: any;
+  oldLabel?: string;
+  newLabel?: string;
+}
+
+export type ChangedValues = Record<string, ChangedFieldDetail>;
 
 export interface FormSubmitDetail {
   valid: boolean;
   formData: Record<string, any>;
   results: FieldValidateResult[];
   summary: FormSubmitSummary;
+  changedValues?: ChangedValues;
 }
 
 export interface FormValidSubmitDetail {
@@ -93,11 +122,22 @@ export interface FormValidSubmitDetail {
 export interface FormSubmitSuccessDetail {
   formData: Record<string, any>;
   result: any;
+  changedValues?: ChangedValues;
 }
 
 export interface FormSubmitErrorDetail {
   formData: Record<string, any>;
   error: any;
+}
+
+export interface SubmitChangedDetail {
+  changedValues: ChangedValues;
+  formData: Record<string, any>;
+}
+
+export interface ValidationClearedDetail {
+  valid: boolean;
+  results: FieldValidateResult[];
 }
 
 export interface MyButtonElement extends HTMLElement {
@@ -161,6 +201,8 @@ export interface MySelectElement extends HTMLElement {
   clearable: boolean;
   searchable: boolean;
   multiple: boolean;
+  remote: boolean;
+  hasMore: boolean;
   block: boolean;
   name: string | null;
   loading: boolean;
@@ -170,10 +212,18 @@ export interface MySelectElement extends HTMLElement {
   validate(): ValidationResult;
   resetValidation(): void;
   reset(): void;
+  getSelectedLabels(): string[];
+  getSelectedOptions(): OptionObject[];
+  getFieldDisplay(): string;
+  setOptions(options: OptionObject[]): void;
+  appendOptions(options: OptionObject[]): void;
+  clearOptions(): void;
   addEventListener<K extends keyof HTMLElementEventMap>(type: K, listener: (ev: HTMLElementEventMap[K]) => void, options?: boolean | AddEventListenerOptions): void;
   addEventListener(type: 'change', listener: (ev: CustomEvent<SelectChangeDetail>) => void, options?: boolean | AddEventListenerOptions): void;
   addEventListener(type: 'open' | 'close' | 'clear', listener: (ev: CustomEvent) => void, options?: boolean | AddEventListenerOptions): void;
   addEventListener(type: 'validation-change', listener: (ev: CustomEvent<ValidationChangeDetail>) => void, options?: boolean | AddEventListenerOptions): void;
+  addEventListener(type: 'fetch-options', listener: (ev: CustomEvent<FetchOptionsDetail>) => void, options?: boolean | AddEventListenerOptions): void;
+  addEventListener(type: 'load-more', listener: (ev: CustomEvent<LoadMoreDetail>) => void, options?: boolean | AddEventListenerOptions): void;
 }
 
 export interface MyModalElement extends HTMLElement {
@@ -205,14 +255,20 @@ export interface MyToastElement extends HTMLElement {
 export interface MyFormElement extends HTMLElement {
   disabled: boolean;
   loading: boolean;
+  readonly isDirty: boolean;
+  submitChangesOnly: boolean;
   validate(): FormValidateResult;
   reset(): void;
+  clear(): void;
   resetValidation(): void;
   submit(callback?: (formData: Record<string, any>) => Promise<any> | void): FormSubmitDetail & { results: FieldValidateResult[]; summary: FormSubmitSummary };
   getFormData(): Record<string, any>;
   setFieldValue(name: string, value: any): void;
   getFieldValue(name: string): any;
   setFieldError(name: string, error: string | null): void;
+  setInitialValues(values: Record<string, any>): void;
+  getDirtyFields(): string[];
+  getChangedValues(): ChangedValues;
   addEventListener<K extends keyof HTMLElementEventMap>(type: K, listener: (ev: HTMLElementEventMap[K]) => void, options?: boolean | AddEventListenerOptions): void;
   addEventListener(type: 'submit', listener: (ev: CustomEvent<FormSubmitDetail>) => void, options?: boolean | AddEventListenerOptions): void;
   addEventListener(type: 'valid-submit', listener: (ev: CustomEvent<FormValidSubmitDetail>) => void, options?: boolean | AddEventListenerOptions): void;
@@ -220,6 +276,8 @@ export interface MyFormElement extends HTMLElement {
   addEventListener(type: 'submit-error', listener: (ev: CustomEvent<FormSubmitErrorDetail>) => void, options?: boolean | AddEventListenerOptions): void;
   addEventListener(type: 'validation-change', listener: (ev: CustomEvent) => void, options?: boolean | AddEventListenerOptions): void;
   addEventListener(type: 'validate' | 'reset', listener: (ev: CustomEvent) => void, options?: boolean | AddEventListenerOptions): void;
+  addEventListener(type: 'submit-changed', listener: (ev: CustomEvent<SubmitChangedDetail>) => void, options?: boolean | AddEventListenerOptions): void;
+  addEventListener(type: 'validation-cleared', listener: (ev: CustomEvent<ValidationClearedDetail>) => void, options?: boolean | AddEventListenerOptions): void;
 }
 
 export interface MyFieldsetElement extends HTMLElement {

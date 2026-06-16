@@ -1,736 +1,1272 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>轻量 Web Components UI 组件库 - 示例</title>
-  <link rel="stylesheet" href="./src/styles/theme.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Web Components UI 组件库 · 用户资料编辑</title>
+  <link rel="stylesheet" href="/src/styles/theme.css" />
   <style>
     * { box-sizing: border-box; }
     body {
       margin: 0;
-      padding: 40px 24px 80px;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-      background: #f8fafc;
-      color: #1f2937;
-      line-height: 1.6;
+      font-family: var(--ui-font-family, -apple-system, 'Segoe UI', Roboto, sans-serif);
+      background: var(--ui-color-bg-secondary, #f5f7fa);
+      color: var(--ui-color-text-primary, #1a1a2e);
+      min-height: 100vh;
+      padding-bottom: 80px;
     }
-    .page-title {
-      font-size: 32px;
-      font-weight: 700;
-      margin: 0 0 8px;
-      background: linear-gradient(135deg, #4f46e5, #8b5cf6);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
+
+    .app-header {
+      background: var(--ui-color-bg, #fff);
+      border-bottom: 1px solid var(--ui-color-border, #e5e7eb);
+      padding: 14px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: var(--ui-shadow-sm, 0 1px 2px rgba(0,0,0,0.04));
+      position: sticky;
+      top: 0;
+      z-index: 50;
     }
-    .page-subtitle {
-      color: #6b7280;
-      margin: 0 0 40px;
-      font-size: 15px;
+    .app-header h1 {
+      margin: 0;
+      font-size: var(--ui-font-size-lg);
+      font-weight: var(--ui-font-weight-semibold);
     }
-    .theme-switcher {
-      position: fixed;
-      top: 24px;
-      right: 24px;
+    .breadcrumb {
+      font-size: var(--ui-font-size-sm);
+      color: var(--ui-color-text-secondary, #6b7280);
+      margin-top: 2px;
+    }
+    .breadcrumb span { color: var(--ui-color-text-tertiary, #9ca3af); }
+
+    .theme-switch {
       display: flex;
       gap: 8px;
-      padding: 8px;
-      background: white;
-      border-radius: 12px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-      z-index: 100;
+      align-items: center;
+      font-size: var(--ui-font-size-sm);
+      color: var(--ui-color-text-secondary);
     }
-    .theme-btn {
-      width: 32px;
-      height: 32px;
-      border: 2px solid transparent;
-      border-radius: 8px;
-      cursor: pointer;
-      transition: all 0.15s ease;
-      padding: 0;
-    }
-    .theme-btn:hover { transform: scale(1.1); }
-    .theme-btn.active { border-color: #1f2937; }
-    .theme-btn[data-theme="default"] { background: linear-gradient(135deg, #4f46e5, #6366f1); }
-    .theme-btn[data-theme="green"] { background: linear-gradient(135deg, #059669, #10b981); }
-    .theme-btn[data-theme="orange"] { background: linear-gradient(135deg, #ea580c, #f59e0b); }
-    .theme-btn[data-theme="pink"] { background: linear-gradient(135deg, #db2777, #ec4899); }
+
     .container {
-      max-width: 960px;
-      margin: 0 auto;
+      max-width: 1100px;
+      margin: 32px auto;
+      padding: 0 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
     }
-    .section {
-      background: white;
-      border-radius: 16px;
-      padding: 32px;
-      margin-bottom: 24px;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+
+    /* 用户信息卡片 */
+    .user-card {
+      background: var(--ui-color-bg, #fff);
+      border-radius: var(--ui-radius-lg);
+      border: 1px solid var(--ui-color-border, #e5e7eb);
+      box-shadow: var(--ui-shadow-sm);
+      padding: 24px;
+      display: flex;
+      gap: 24px;
+      align-items: center;
     }
-    .section-title {
-      font-size: 20px;
-      font-weight: 600;
-      margin: 0 0 8px;
-      color: #1f2937;
+    .user-avatar {
+      width: 72px; height: 72px;
+      border-radius: var(--ui-radius-full);
+      background: linear-gradient(135deg, var(--ui-color-primary, #7c3aed), var(--ui-color-info, #3b82f6));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: var(--ui-font-size-xl);
+      font-weight: var(--ui-font-weight-semibold);
+      flex-shrink: 0;
     }
-    .section-desc {
-      color: #6b7280;
-      margin: 0 0 24px;
-      font-size: 14px;
+    .user-meta { flex: 1; }
+    .user-meta .u-name {
+      font-size: var(--ui-font-size-xl);
+      font-weight: var(--ui-font-weight-semibold);
+      margin-bottom: 4px;
+    }
+    .user-meta .u-info {
+      font-size: var(--ui-font-size-sm);
+      color: var(--ui-color-text-secondary);
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+    .user-meta .u-tag {
+      display: inline-block;
+      padding: 2px 10px;
+      background: var(--ui-color-success-light, #ecfdf5);
+      color: var(--ui-color-success, #059669);
+      border-radius: var(--ui-radius-full);
+      font-size: var(--ui-font-size-xs);
+      margin-left: 8px;
+    }
+    .user-card-actions {
+      display: flex;
+      gap: 10px;
+      flex-direction: column;
+      align-items: flex-end;
+    }
+    .sim-fail {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: var(--ui-font-size-sm);
+      color: var(--ui-color-text-secondary);
+      padding: 6px 12px;
+      border-radius: var(--ui-radius-md);
+      border: 1px dashed var(--ui-color-border);
+      cursor: pointer;
+      user-select: none;
+    }
+    .sim-fail.active {
+      background: var(--ui-color-danger-light, #fef2f2);
+      border-color: var(--ui-color-danger, #dc2626);
+      color: var(--ui-color-danger);
+      border-style: solid;
+    }
+    .sim-fail .dot {
+      width: 8px; height: 8px;
+      border-radius: var(--ui-radius-full);
+      background: var(--ui-color-text-tertiary);
+    }
+    .sim-fail.active .dot { background: var(--ui-color-danger); }
+
+    /* 编辑表单卡片 */
+    .edit-card {
+      background: var(--ui-color-bg, #fff);
+      border-radius: var(--ui-radius-lg);
+      border: 1px solid var(--ui-color-border, #e5e7eb);
+      box-shadow: var(--ui-shadow-sm);
+      overflow: hidden;
+    }
+    .card-head {
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--ui-color-border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .card-head h2 {
+      margin: 0;
+      font-size: var(--ui-font-size-md);
+      font-weight: var(--ui-font-weight-semibold);
+    }
+    .card-head .dirty-badge {
+      font-size: var(--ui-font-size-xs);
+      padding: 3px 10px;
+      border-radius: var(--ui-radius-full);
+      background: var(--ui-color-warning-light, #fffbeb);
+      color: var(--ui-color-warning, #d97706);
+      border: 1px solid var(--ui-color-warning);
+      opacity: 0;
+      transition: opacity .2s;
+    }
+    .card-head .dirty-badge.show { opacity: 1; }
+    .card-body { padding: 24px; }
+
+    .form-actions {
+      margin-top: 8px;
+      padding: 18px 24px;
+      border-top: 1px solid var(--ui-color-border);
+      display: flex;
+      gap: 12px;
+      justify-content: flex-end;
+      background: var(--ui-color-bg-secondary);
+      flex-wrap: wrap;
+    }
+    .form-actions .spacer { flex: 1; }
+
+    /* 结果摘要区 */
+    .result-card {
+      background: var(--ui-color-bg, #fff);
+      border-radius: var(--ui-radius-lg);
+      border: 1px solid var(--ui-color-border, #e5e7eb);
+      box-shadow: var(--ui-shadow-sm);
+      overflow: hidden;
+      display: none;
+    }
+    .result-card.show { display: block; }
+    .result-head {
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--ui-color-border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: var(--ui-font-weight-semibold);
+    }
+    .result-head.success {
+      background: var(--ui-color-success-light, #ecfdf5);
+      color: var(--ui-color-success, #059669);
+    }
+    .result-head.error {
+      background: var(--ui-color-danger-light, #fef2f2);
+      color: var(--ui-color-danger, #dc2626);
+    }
+    .result-head .res-icon {
+      width: 28px; height: 28px;
+      border-radius: var(--ui-radius-full);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+    }
+    .result-head.success .res-icon { background: var(--ui-color-success); color: #fff; }
+    .result-head.error .res-icon { background: var(--ui-color-danger); color: #fff; }
+    .result-body { padding: 24px; }
+
+    .result-summary-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+    @media (max-width: 760px) {
+      .result-summary-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    .stat-box {
+      padding: 14px 16px;
+      border-radius: var(--ui-radius-md);
+      background: var(--ui-color-bg-secondary);
+      border: 1px solid var(--ui-color-border);
+    }
+    .stat-box .label {
+      font-size: var(--ui-font-size-xs);
+      color: var(--ui-color-text-secondary);
+      margin-bottom: 4px;
+    }
+    .stat-box .value {
+      font-size: var(--ui-font-size-lg);
+      font-weight: var(--ui-font-weight-semibold);
+    }
+    .stat-box.primary .value { color: var(--ui-color-primary); }
+    .stat-box.success .value { color: var(--ui-color-success); }
+    .stat-box.danger .value { color: var(--ui-color-danger); }
+    .stat-box.warning .value { color: var(--ui-color-warning); }
+
+    .changes-section { margin-top: 8px; }
+    .changes-title {
+      font-size: var(--ui-font-size-sm);
+      font-weight: var(--ui-font-weight-semibold);
+      margin-bottom: 10px;
+      color: var(--ui-color-text-primary);
+    }
+    .change-list { display: flex; flex-direction: column; gap: 8px; }
+    .change-row {
+      display: grid;
+      grid-template-columns: 140px 1fr auto 1fr;
+      gap: 10px;
+      align-items: center;
+      padding: 10px 14px;
+      border-radius: var(--ui-radius-md);
+      background: var(--ui-color-bg-secondary);
+      border: 1px solid var(--ui-color-border);
+      font-size: var(--ui-font-size-sm);
+    }
+    .change-row .field-name {
+      font-weight: var(--ui-font-weight-medium);
+      color: var(--ui-color-text-primary);
+    }
+    .change-row .old-val {
+      background: #fff;
+      padding: 4px 10px;
+      border-radius: var(--ui-radius-sm);
+      border: 1px dashed var(--ui-color-border);
+      color: var(--ui-color-text-secondary);
+      text-align: right;
+    }
+    .change-row .arrow {
+      color: var(--ui-color-primary);
+      font-weight: var(--ui-font-weight-semibold);
+    }
+    .change-row .new-val {
+      background: var(--ui-color-primary-light, #f5f3ff);
+      padding: 4px 10px;
+      border-radius: var(--ui-radius-sm);
+      color: var(--ui-color-primary);
+      border: 1px solid var(--ui-color-primary-light);
+      font-weight: var(--ui-font-weight-medium);
+    }
+    .no-changes {
+      padding: 18px;
+      text-align: center;
+      color: var(--ui-color-text-secondary);
+      font-size: var(--ui-font-size-sm);
+      border-radius: var(--ui-radius-md);
+      background: var(--ui-color-bg-secondary);
+      border: 1px dashed var(--ui-color-border);
+    }
+
+    .result-detail pre {
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 14px 16px;
+      border-radius: var(--ui-radius-md);
+      font-size: var(--ui-font-size-xs);
+      line-height: 1.6;
+      overflow: auto;
+      max-height: 280px;
+    }
+    .result-detail h4 {
+      margin: 18px 0 8px;
+      font-size: var(--ui-font-size-sm);
+      font-weight: var(--ui-font-weight-semibold);
+    }
+
+    /* 组件演示区折叠 */
+    details.components-demos {
+      background: var(--ui-color-bg, #fff);
+      border-radius: var(--ui-radius-lg);
+      border: 1px solid var(--ui-color-border, #e5e7eb);
+      box-shadow: var(--ui-shadow-sm);
+      padding: 20px 24px;
+    }
+    details.components-demos summary {
+      cursor: pointer;
+      font-weight: var(--ui-font-weight-semibold);
+      padding: 4px 0;
+      font-size: var(--ui-font-size-md);
+      list-style: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    details.components-demos summary::before {
+      content: '▶';
+      font-size: 10px;
+      color: var(--ui-color-text-secondary);
+      transition: transform .2s;
+    }
+    details.components-demos[open] summary::before { transform: rotate(90deg); }
+    details.components-demos summary::-webkit-details-marker { display: none; }
+
+    .demo-section {
+      margin-top: 24px;
+      padding: 20px 0;
+      border-top: 1px dashed var(--ui-color-border);
+    }
+    .demo-section:first-of-type { border-top: none; }
+    .demo-title {
+      font-size: var(--ui-font-size-md);
+      font-weight: var(--ui-font-weight-semibold);
+      margin-bottom: 14px;
     }
     .demo-row {
       display: flex;
-      flex-wrap: wrap;
       gap: 12px;
+      flex-wrap: wrap;
       align-items: center;
-      margin-bottom: 20px;
-    }
-    .demo-row-title {
-      width: 100%;
-      font-size: 13px;
-      font-weight: 500;
-      color: #9ca3af;
-      margin: 0 0 4px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
+      margin-bottom: 12px;
     }
     .demo-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-      gap: 16px;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 14px;
+      margin-bottom: 12px;
     }
-    .demo-block {
-      margin-bottom: 16px;
+    .demo-hint {
+      font-size: var(--ui-font-size-xs);
+      color: var(--ui-color-text-secondary);
+      margin-top: 6px;
     }
+
     .event-log {
-      background: #0f172a;
-      color: #e2e8f0;
-      border-radius: 12px;
-      padding: 16px;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-      font-size: 13px;
-      max-height: 200px;
-      overflow-y: auto;
-      margin-top: 16px;
+      margin-top: 14px;
+      background: var(--ui-color-bg-secondary);
+      border: 1px solid var(--ui-color-border);
+      border-radius: var(--ui-radius-md);
+      padding: 10px 14px;
+      font-family: 'JetBrains Mono', 'Consolas', monospace;
+      font-size: var(--ui-font-size-xs);
+      max-height: 180px;
+      overflow: auto;
     }
     .event-log .log-item {
       padding: 4px 0;
-      border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+      border-bottom: 1px dashed var(--ui-color-border);
+      color: var(--ui-color-text-secondary);
     }
     .event-log .log-item:last-child { border-bottom: none; }
     .event-log .log-time {
-      color: #64748b;
+      color: var(--ui-color-text-tertiary);
       margin-right: 8px;
     }
     .event-log .log-type {
-      color: #a78bfa;
-      font-weight: 500;
-      margin-right: 8px;
-    }
-    .code-tag {
       display: inline-block;
-      background: #f1f5f9;
-      color: #475569;
-      padding: 2px 8px;
-      border-radius: 6px;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-      font-size: 12px;
-      margin: 0 2px;
+      padding: 1px 8px;
+      border-radius: var(--ui-radius-sm);
+      margin-right: 8px;
+      font-weight: var(--ui-font-weight-medium);
     }
+    .log-type.submit { background: var(--ui-color-primary-light); color: var(--ui-color-primary); }
+    .log-type.change { background: var(--ui-color-info-light); color: var(--ui-color-info); }
+    .log-type.error { background: var(--ui-color-danger-light); color: var(--ui-color-danger); }
+    .log-type.success { background: var(--ui-color-success-light); color: var(--ui-color-success); }
+    .log-type.event { background: var(--ui-color-warning-light); color: var(--ui-color-warning); }
   </style>
 </head>
 <body>
-  <div class="theme-switcher">
-    <button class="theme-btn active" data-theme="default" title="默认主题"></button>
-    <button class="theme-btn" data-theme="green" title="绿色主题"></button>
-    <button class="theme-btn" data-theme="orange" title="橙色主题"></button>
-    <button class="theme-btn" data-theme="pink" title="粉色主题"></button>
-  </div>
+  <header class="app-header">
+    <div>
+      <h1>用户资料编辑 · 后台管理</h1>
+      <div class="breadcrumb">系统管理 / 用户管理 / <span>编辑资料</span></div>
+    </div>
+    <div class="theme-switch">
+      主题：
+      <select id="theme-select" style="
+        padding: 6px 10px;
+        border-radius: var(--ui-radius-md);
+        border: 1px solid var(--ui-color-border);
+        background: var(--ui-color-bg);
+        font-family: inherit;
+        cursor: pointer;
+      ">
+        <option value="default">默认（紫色）</option>
+        <option value="blue">商务蓝</option>
+        <option value="green">活力绿</option>
+        <option value="orange">暖橙</option>
+        <option value="rose">玫红</option>
+      </select>
+    </div>
+  </header>
 
-  <div class="container">
-    <h1 class="page-title">轻量 Web Components UI 组件库</h1>
-    <p class="page-subtitle">基于原生 Web Components 标准 · Shadow DOM 样式隔离 · CustomEvent 事件冒泡 · CSS 自定义属性换肤</p>
+  <main class="container">
 
-    <section class="section">
-      <h2 class="section-title">按钮组件 my-button</h2>
-      <p class="section-desc">
-        支持的属性：<span class="code-tag">variant</span><span class="code-tag">size</span><span class="code-tag">type</span><span class="code-tag">disabled</span><span class="code-tag">loading</span><span class="code-tag">block</span><span class="code-tag">rounded</span>
-      </p>
-      <div class="demo-row">
-        <div class="demo-row-title">variant 变体</div>
-        <my-button variant="primary">主要按钮</my-button>
-        <my-button variant="secondary">次要按钮</my-button>
-        <my-button variant="outline">描边按钮</my-button>
-        <my-button variant="ghost">幽灵按钮</my-button>
-        <my-button variant="danger">危险按钮</my-button>
+    <!-- 用户信息卡片 -->
+    <section class="user-card">
+      <div class="user-avatar">Z</div>
+      <div class="user-meta">
+        <div class="u-name">张三 <span class="u-tag">已认证</span></div>
+        <div style="font-size: var(--ui-font-size-sm); color: var(--ui-color-text-secondary);">产品设计部 · 高级设计师</div>
+        <div class="u-info">
+          <span>📧 zhangsan@example.com</span>
+          <span>📱 138****8888</span>
+          <span>🏢 北京总部</span>
+          <span>创建于 2023-05-12</span>
+        </div>
       </div>
-      <div class="demo-row">
-        <div class="demo-row-title">size 尺寸</div>
-        <my-button size="xs">超小</my-button>
-        <my-button size="sm">小号</my-button>
-        <my-button size="md">中号</my-button>
-        <my-button size="lg">大号</my-button>
-      </div>
-      <div class="demo-row">
-        <div class="demo-row-title">状态</div>
-        <my-button disabled>禁用状态</my-button>
-        <my-button loading>加载中</my-button>
-        <my-button variant="primary" loading>提交中</my-button>
-        <my-button rounded="full">圆角按钮</my-button>
-      </div>
-      <div class="demo-row">
-        <div class="demo-row-title">带图标（使用 slot）</div>
-        <my-button>
-          <span slot="icon-left">➕</span>
-          新建
+      <div class="user-card-actions">
+        <label class="sim-fail" id="sim-fail-toggle" title="开启后提交会模拟失败，用于测试重试流程">
+          <span class="dot"></span>
+          <span class="fail-label">模拟失败模式：关</span>
+        </label>
+        <my-button variant="outline" size="sm" id="show-changes-btn">
+          查看变更字段
         </my-button>
-        <my-button variant="outline">
-          下载
-          <span slot="icon-right">⬇️</span>
-        </my-button>
-      </div>
-      <div class="demo-block">
-        <div class="demo-row-title">block 块级按钮</div>
-        <my-button block>占满整行宽度</my-button>
-      </div>
-      <div class="demo-row">
-        <div class="demo-row-title">点击计数测试（验证无重复触发）</div>
-        <my-button id="btn-count" variant="outline">点击了 0 次</my-button>
       </div>
     </section>
 
-    <section class="section">
-      <h2 class="section-title">输入框组件 my-input</h2>
-      <p class="section-desc">
-        支持的属性：<span class="code-tag">label</span><span class="code-tag">placeholder</span><span class="code-tag">type</span><span class="code-tag">value</span><span class="code-tag">size</span><span class="code-tag">disabled</span><span class="code-tag">readonly</span><span class="code-tag">required</span><span class="code-tag">error</span><span class="code-tag">help-text</span><span class="code-tag">clearable</span><span class="code-tag">maxlength</span><span class="code-tag">rules</span><span class="code-tag">pattern</span><span class="code-tag">name</span>
-      </p>
-      <div class="demo-grid">
-        <div>
-          <div class="demo-row-title">基础用法</div>
-          <my-input label="用户名" placeholder="请输入用户名" clearable></my-input>
+    <!-- 编辑表单 -->
+    <section class="edit-card">
+      <div class="card-head">
+        <h2>编辑用户资料</h2>
+        <span class="dirty-badge" id="dirty-badge">● 有未保存的修改</span>
+      </div>
+      <div class="card-body">
+        <my-form id="profile-form" submit-changes-only>
+          <my-fieldset title="基本信息">
+            <div class="form-grid">
+              <my-input label="用户编号" name="userId" readonly value="U20240001" help-text="系统自动生成，不可修改" block></my-input>
+              <my-input label="姓名" name="username" placeholder="请输入真实姓名" rules="required" block></my-input>
+            </div>
+            <div class="form-grid">
+              <my-select label="性别" name="gender" block clearable>
+                <my-option value="male">男</my-option>
+                <my-option value="female">女</my-option>
+                <my-option value="other">其他</my-option>
+              </my-select>
+              <my-select label="所在地区" name="region" block searchable clearable>
+                <my-option value="beijing">北京市</my-option>
+                <my-option value="shanghai">上海市</my-option>
+                <my-option value="guangzhou">广州市</my-option>
+                <my-option value="shenzhen">深圳市</my-option>
+                <my-option value="hangzhou">杭州市</my-option>
+                <my-option value="chengdu">成都市</my-option>
+                <my-option value="wuhan">武汉市</my-option>
+                <my-option value="xian">西安市</my-option>
+                <my-option value="nanjing">南京市</my-option>
+              </my-select>
+            </div>
+            <div class="form-grid">
+              <my-input label="出生日期" name="birthday" type="date" block></my-input>
+              <my-input label="入职日期" name="joinDate" type="date" block rules="required"></my-input>
+            </div>
+          </my-fieldset>
+
+          <my-fieldset title="账号与安全">
+            <div class="form-grid">
+              <my-input label="邮箱地址" name="email" placeholder="name@company.com" rules="required|email" block></my-input>
+              <my-input label="手机号码" name="phone" placeholder="11位手机号" rules="required|pattern:^1[3-9]\d{9}$" block></my-input>
+            </div>
+            <div class="form-grid">
+              <my-select label="上级主管" name="manager" block searchable remote has-more clearable
+                placeholder="请输入姓名搜索">
+              </my-select>
+              <my-select label="所属部门" name="department" block required searchable clearable
+                help-text="必填项，选中后红框将自动消除">
+                <my-option value="pd">产品设计部</my-option>
+                <my-option value="rd">研发中心</my-option>
+                <my-option value="mk">市场部</my-option>
+                <my-option value="hr">人力资源部</my-option>
+                <my-option value="fi">财务部</my-option>
+                <my-option value="op">运营部</my-option>
+                <my-option value="sa">销售部</my-option>
+              </my-select>
+            </div>
+          </my-fieldset>
+
+          <my-fieldset title="工作偏好与标签">
+            <div class="form-grid">
+              <my-select label="技能标签" name="skills" block multiple searchable remote has-more clearable
+                placeholder="选择或搜索技能标签，支持多选"
+                help-text="远程数据：打开即加载，可输入关键词过滤，滚动加载更多">
+              </my-select>
+              <my-select label="职位级别" name="level" block required clearable>
+                <my-option value="intern">实习生</my-option>
+                <my-option value="junior">初级</my-option>
+                <my-option value="mid">中级</my-option>
+                <my-option value="senior">高级</my-option>
+                <my-option value="lead">主管</my-option>
+                <my-option value="manager">经理</my-option>
+                <my-option value="director">总监</my-option>
+              </my-select>
+            </div>
+            <my-input label="个人简介" name="bio" type="textarea" rows="3"
+              placeholder="简要介绍一下该员工的工作经历、专长和职责范围..."
+              maxlength="500" block></my-input>
+            <div class="form-grid">
+              <my-select label="是否接收系统通知" name="notify" block clearable>
+                <my-option value="all">全部通知</my-option>
+                <my-option value="important">仅重要通知</my-option>
+                <my-option value="none">不接收</my-option>
+              </my-select>
+              <my-select label="数据权限级别" name="permission" block required>
+                <my-option value="self">仅本人数据</my-option>
+                <my-option value="dept">本部门数据</my-option>
+                <my-option value="cross">跨部门查看</my-option>
+                <my-option value="all">全部数据</my-option>
+              </my-select>
+            </div>
+          </my-fieldset>
+        </my-form>
+      </div>
+      <div class="form-actions" slot="actions">
+        <span class="spacer"></span>
+        <my-button variant="ghost" size="md" id="btn-validate">仅校验</my-button>
+        <my-button variant="ghost" size="md" id="btn-clear">清空表单</my-button>
+        <my-button variant="secondary" size="md" id="btn-reset">恢复初始值</my-button>
+        <my-button variant="primary" size="md" id="btn-submit">保存修改</my-button>
+      </div>
+    </section>
+
+    <!-- 提交结果摘要 -->
+    <section class="result-card" id="result-card">
+      <div class="result-head success" id="result-head">
+        <div class="res-icon" id="result-icon">✓</div>
+        <div id="result-title">资料保存成功</div>
+        <div style="flex:1"></div>
+        <span style="font-weight:normal; font-size:var(--ui-font-size-sm);" id="result-time"></span>
+      </div>
+      <div class="result-body">
+        <div class="result-summary-grid">
+          <div class="stat-box primary">
+            <div class="label">总字段数</div>
+            <div class="value" id="stat-total">0</div>
+          </div>
+          <div class="stat-box warning">
+            <div class="label">变更字段</div>
+            <div class="value" id="stat-changed">0</div>
+          </div>
+          <div class="stat-box success">
+            <div class="label">校验通过</div>
+            <div class="value" id="stat-valid">0</div>
+          </div>
+          <div class="stat-box danger">
+            <div class="label">字段错误</div>
+            <div class="value" id="stat-invalid">0</div>
+          </div>
         </div>
-        <div>
-          <div class="demo-row-title">密码输入</div>
-          <my-input label="密码" type="password" placeholder="请输入密码"></my-input>
+
+        <div class="changes-section" id="changes-section">
+          <div class="changes-title">字段变更详情</div>
+          <div class="change-list" id="change-list"></div>
         </div>
-        <div>
-          <div class="demo-row-title">带帮助文本</div>
-          <my-input label="邮箱" type="email" placeholder="name@example.com" help-text="我们不会公开您的邮箱"></my-input>
-        </div>
-        <div>
-          <div class="demo-row-title">错误状态</div>
-          <my-input label="手机号" error="请输入有效的手机号码" value="12345"></my-input>
-        </div>
-        <div>
-          <div class="demo-row-title">带前后缀 slot</div>
-          <my-input placeholder="请输入金额">
-            <span slot="prefix">¥</span>
-            <span slot="suffix">.00</span>
-          </my-input>
-          <div style="height:12px"></div>
-          <my-input placeholder="搜索内容">
-            <span slot="prefix">🔍</span>
-          </my-input>
-        </div>
-        <div>
-          <div class="demo-row-title">数字输入</div>
-          <my-input type="number" label="数量" min="1" max="99" step="1" value="1"></my-input>
+
+        <div class="result-detail" style="margin-top: 24px;">
+          <h4>📦 提交到后端的数据（仅变更字段 submit-changes-only）</h4>
+          <pre id="submit-payload">{}</pre>
+
+          <h4>🔙 后端返回值</h4>
+          <pre id="backend-response">{}</pre>
         </div>
       </div>
-      <div style="margin-top:20px;">
-        <div class="demo-row-title">rules 内置校验（失焦自动触发）</div>
+    </section>
+
+    <!-- 组件演示区 -->
+    <details class="components-demos">
+      <summary>组件能力演示 · 按钮 / 输入 / 下拉 / 模态 / Toast</summary>
+
+      <section class="demo-section">
+        <div class="demo-title">按钮</div>
+        <div class="demo-row" id="btn-demo-row"></div>
+        <div class="demo-hint">点击按钮只触发一次监听（已修复双击问题）</div>
+      </section>
+
+      <section class="demo-section">
+        <div class="demo-title">输入框（校验规则：required | email | min:3 | max:20）</div>
         <div class="demo-grid">
-          <my-input label="邮箱（必填+邮箱格式）" rules="required|email" name="demo-email" placeholder="user@example.com"></my-input>
-          <my-input label="用户名（3-20字符）" rules="required|min:3|max:20" name="demo-user" placeholder="3-20个字符"></my-input>
-          <my-input label="手机号（正则）" rules="required|pattern:^1[3-9]\\d{9}$" name="demo-phone" placeholder="11位手机号"></my-input>
+          <my-input label="用户名" name="d1" placeholder="请输入3-20位字符" rules="required|min:3|max:20" block></my-input>
+          <my-input label="邮箱" name="d2" type="email" placeholder="name@example.com" rules="required|email" block></my-input>
+          <my-input label="网址" name="d3" type="url" placeholder="https://..." rules="url" block></my-input>
+          <my-input label="带清空" name="d4" placeholder="输入后可一键清空" clearable block></my-input>
         </div>
-      </div>
-      <div class="event-log" id="input-log">
-        <div class="log-item"><span class="log-time">--:--:--</span><span class="log-type">ready</span>输入框事件日志</div>
-      </div>
-    </section>
+      </section>
 
-    <section class="section">
-      <h2 class="section-title">下拉菜单组件 my-select</h2>
-      <p class="section-desc">
-        支持的属性：<span class="code-tag">label</span><span class="code-tag">placeholder</span><span class="code-tag">value</span><span class="code-tag">size</span><span class="code-tag">disabled</span><span class="code-tag">required</span><span class="code-tag">error</span><span class="code-tag">clearable</span><span class="code-tag">searchable</span><span class="code-tag">multiple</span><span class="code-tag">loading</span><span class="code-tag">name</span>。输入搜索不会再失焦，必填选好后红框自动消除。
-      </p>
-      <div class="demo-grid">
-        <div>
-          <div class="demo-row-title">基础用法</div>
-          <my-select label="城市" placeholder="请选择城市" clearable name="city">
-            <my-option value="beijing">北京</my-option>
-            <my-option value="shanghai">上海</my-option>
-            <my-option value="guangzhou">广州</my-option>
-            <my-option value="shenzhen">深圳</my-option>
-            <my-option value="hangzhou">杭州</my-option>
+      <section class="demo-section">
+        <div class="demo-title">下拉菜单（搜索 / 多选 / 必填 / 远程 / 分页）</div>
+        <div class="demo-grid">
+          <my-select label="静态单选" block searchable clearable>
+            <my-option value="1">选项 A</my-option>
+            <my-option value="2">选项 B</my-option>
+            <my-option value="3">选项 C</my-option>
+            <my-option value="4">选项 D</my-option>
+            <my-option value="5">选项 E</my-option>
+            <my-option value="6">选项 F</my-option>
           </my-select>
-        </div>
-        <div>
-          <div class="demo-row-title">搜索模式（连续输入不失焦）</div>
-          <my-select label="编程语言" placeholder="输入关键词搜索" searchable name="lang">
-            <my-option value="javascript">JavaScript</my-option>
-            <my-option value="typescript">TypeScript</my-option>
-            <my-option value="python">Python</my-option>
-            <my-option value="java">Java</my-option>
-            <my-option value="go">Go</my-option>
-            <my-option value="rust">Rust</my-option>
-            <my-option value="csharp">C#</my-option>
-            <my-option value="cpp">C++</my-option>
-            <my-option value="swift">Swift</my-option>
-            <my-option value="kotlin">Kotlin</my-option>
+          <my-select label="必填（选好自动消红框）" block required clearable>
+            <my-option value="1">前端开发</my-option>
+            <my-option value="2">后端开发</my-option>
+            <my-option value="3">产品经理</my-option>
+            <my-option value="4">UI 设计</my-option>
           </my-select>
-        </div>
-        <div>
-          <div class="demo-row-title">多选模式（标签展示，数据与表单一致）</div>
-          <my-select label="技能标签" placeholder="选择多个标签" multiple clearable name="skills">
-            <my-option value="html">HTML</my-option>
-            <my-option value="css">CSS</my-option>
-            <my-option value="js">JavaScript</my-option>
-            <my-option value="ts">TypeScript</my-option>
-            <my-option value="react">React</my-option>
+          <my-select label="多选标签" block multiple searchable clearable>
             <my-option value="vue">Vue</my-option>
-            <my-option value="node">Node.js</my-option>
-            <my-option value="python">Python</my-option>
-          </my-select>
-        </div>
-        <div>
-          <div class="demo-row-title">必填校验（选好后红框自动消失）</div>
-          <my-select label="部门" placeholder="先点'仅校验'看红框，再选值观察红框消除" required name="dept">
-            <my-option value="tech">技术部</my-option>
-            <my-option value="product">产品部</my-option>
-            <my-option value="design">设计部</my-option>
-            <my-option value="marketing">市场部</my-option>
-          </my-select>
-        </div>
-        <div>
-          <div class="demo-row-title">远程加载 loading 状态</div>
-          <my-select id="remote-select" label="用户列表" placeholder="点击加载远程数据" searchable name="remoteUser">
-          </my-select>
-          <div style="display:flex;gap:8px;margin-top:8px;">
-            <my-button size="xs" variant="outline" id="btn-load-remote">加载数据</my-button>
-            <my-button size="xs" variant="secondary" id="btn-clear-remote">清空选项</my-button>
-          </div>
-        </div>
-        <div>
-          <div class="demo-row-title">搜索无结果空状态</div>
-          <my-select label="演示：搜索 xyz" placeholder="搜索 xyz 试试" searchable name="empty-demo">
-            <my-option value="a">Apple</my-option>
-            <my-option value="b">Banana</my-option>
-            <my-option value="c">Cherry</my-option>
-          </my-select>
-        </div>
-      </div>
-      <div class="event-log" id="select-log">
-        <div class="log-item"><span class="log-time">--:--:--</span><span class="log-type">ready</span>下拉菜单事件日志（验证不重复）</div>
-      </div>
-    </section>
-
-    <section class="section">
-      <h2 class="section-title">模态对话框组件 my-modal</h2>
-      <p class="section-desc">
-        支持的属性：<span class="code-tag">open</span><span class="code-tag">size</span><span class="code-tag">title</span><span class="code-tag">loading</span><span class="code-tag">mask-closable</span><span class="code-tag">esc-closable</span> · 静态方法 <span class="code-tag">MyModal.confirm()</span>
-      </p>
-      <div class="demo-row">
-        <div class="demo-row-title">触发方式</div>
-        <my-button id="open-basic">基础对话框</my-button>
-        <my-button variant="outline" id="open-form">表单对话框</my-button>
-        <my-button variant="secondary" id="open-sizes">不同尺寸</my-button>
-      </div>
-      <div class="demo-row">
-        <div class="demo-row-title">快捷确认 & 异步加载</div>
-        <my-button id="open-quick-confirm" variant="outline">快捷确认框</my-button>
-        <my-button id="open-delete-confirm" variant="danger">删除确认（异步）</my-button>
-        <my-button id="open-async-save" variant="primary">模拟保存（loading态）</my-button>
-      </div>
-      <div class="event-log" id="modal-log">
-        <div class="log-item"><span class="log-time">--:--:--</span><span class="log-type">ready</span>对话框事件日志</div>
-      </div>
-    </section>
-
-    <section class="section">
-      <h2 class="section-title">消息提示条组件 my-toast</h2>
-      <p class="section-desc">
-        支持的属性：<span class="code-tag">type</span><span class="code-tag">duration</span><span class="code-tag">closable</span>。也可通过 <span class="code-tag">showToast()</span> 静态方法调用。
-      </p>
-      <div class="demo-row">
-        <div class="demo-row-title">type 类型</div>
-        <my-button id="toast-success" variant="primary" style="background:#10b981;border-color:#10b981;">Success</my-button>
-        <my-button id="toast-warning" variant="primary" style="background:#f59e0b;border-color:#f59e0b;">Warning</my-button>
-        <my-button id="toast-error" variant="danger">Error</my-button>
-        <my-button id="toast-info" variant="primary">Info</my-button>
-      </div>
-      <div class="demo-row">
-        <div class="demo-row-title">自定义配置</div>
-        <my-button id="toast-closable" variant="outline">可手动关闭</my-button>
-        <my-button id="toast-long" variant="outline">长停留时间 (5s)</my-button>
-        <my-button id="toast-multi" variant="outline">批量弹出</my-button>
-      </div>
-    </section>
-
-    <section class="section">
-      <h2 class="section-title">表单校验示例 my-form + my-fieldset</h2>
-      <p class="section-desc">
-        使用 <span class="code-tag">my-fieldset</span> 进行字段分组。<span class="code-tag">form.submit(async callback)</span> 调用时自动禁用整表 + loading 遮罩。提交成功后展示完整数据和 <span class="code-tag">summary</span> 校验摘要。
-      </p>
-      <my-form id="demo-form">
-        <my-fieldset title="账号信息">
-          <my-input name="username" label="用户名" placeholder="3-20个字符" clearable required rules="required|min:3|max:20" help-text="支持字母、数字、下划线"></my-input>
-          <my-input name="email" label="邮箱" type="email" placeholder="name@example.com" required rules="required|email"></my-input>
-          <my-input name="password" label="密码" type="password" placeholder="至少6位" required rules="required|min:6"></my-input>
-        </my-fieldset>
-        <my-fieldset title="个人资料">
-          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;">
-            <my-select name="gender" label="性别" placeholder="请选择" required>
-              <my-option value="male">男</my-option>
-              <my-option value="female">女</my-option>
-              <my-option value="other">其他</my-option>
-            </my-select>
-            <my-select name="country" label="所在地区" placeholder="请选择国家/地区" clearable required>
-              <my-option value="cn">🇨🇳 中国</my-option>
-              <my-option value="us">🇺🇸 美国</my-option>
-              <my-option value="jp">🇯🇵 日本</my-option>
-              <my-option value="kr">🇰🇷 韩国</my-option>
-              <my-option value="uk">🇬🇧 英国</my-option>
-            </my-select>
-          </div>
-          <my-select name="skills" label="技能标签（多选）" placeholder="可多选" multiple searchable>
-            <my-option value="html">HTML</my-option>
-            <my-option value="css">CSS</my-option>
-            <my-option value="js">JavaScript</my-option>
-            <my-option value="ts">TypeScript</my-option>
             <my-option value="react">React</my-option>
-            <my-option value="vue">Vue</my-option>
+            <my-option value="angular">Angular</my-option>
+            <my-option value="svelte">Svelte</my-option>
+            <my-option value="solid">Solid</my-option>
+            <my-option value="qwik">Qwik</my-option>
           </my-select>
-          <my-input name="bio" label="个人简介" placeholder="一句话介绍自己（选填）" maxlength="100"></my-input>
-        </my-fieldset>
-        <div slot="actions" style="display:flex;gap:12px;padding-top:8px;">
-          <my-button id="form-submit" block variant="primary">提交（自动loading）</my-button>
-          <my-button block variant="secondary" id="form-reset">重置</my-button>
-          <my-button block variant="outline" id="form-validate">仅校验</my-button>
-          <my-button block variant="ghost" id="form-fill">自动填充</my-button>
+          <my-select id="demo-remote" label="远程搜索（输入刷新）" block remote searchable has-more clearable
+            placeholder="输入姓名搜索员工">
+          </my-select>
         </div>
-      </my-form>
-      <div id="form-result" style="display:none;margin-top:16px;padding:16px;border-radius:12px;background:#ecfdf5;border:1px solid #a7f3d0;">
-        <div style="font-weight:600;color:#065f46;margin-bottom:8px;">✓ 提交结果摘要</div>
-        <pre id="form-result-content" style="margin:0;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;color:#064e3b;white-space:pre-wrap;word-break:break-all;"></pre>
-      </div>
-      <div class="event-log" id="form-log">
-        <div class="log-item"><span class="log-time">--:--:--</span><span class="log-type">ready</span>表单事件日志</div>
-      </div>
-    </section>
-  </div>
+        <div class="demo-row" style="margin-top: 14px;">
+          <my-button variant="outline" id="demo-remote-load">加载远程选项</my-button>
+          <my-button variant="outline" id="demo-remote-clear">清空远程选项</my-button>
+        </div>
+        <div class="demo-hint">提示：远程下拉打开后首次自动加载；输入关键词 250ms debounce 后派发 fetch-options；滚动到底部触发 load-more；加载期间旧选项不可点击</div>
+      </section>
 
-  <my-modal id="modal-basic" title="欢迎使用">
-    <p>这是一个基础模态对话框。你可以通过点击遮罩层、按 <kbd class="code-tag">Esc</kbd> 键或点击右上角关闭按钮来关闭它。</p>
-    <p>对话框支持完整的键盘交互，使用 <kbd class="code-tag">Tab</kbd> 键在可聚焦元素之间循环导航。</p>
-  </my-modal>
+      <section class="demo-section">
+        <div class="demo-title">模态对话框</div>
+        <div class="demo-row">
+          <my-button variant="primary" id="demo-open-modal">打开对话框</my-button>
+          <my-button variant="danger" id="demo-confirm">MyModal.confirm() 删除确认</my-button>
+          <my-button variant="warning" id="demo-async-confirm">异步确认（保存中加载态）</my-button>
+          <my-button variant="outline" id="demo-before-close">before-close 拦截</my-button>
+        </div>
+      </section>
 
-  <my-modal id="modal-form" title="修改个人信息">
-    <div style="display: flex; flex-direction: column; gap: 16px; max-width: 420px;">
-      <my-input label="昵称" placeholder="请输入昵称" value="小明" rules="required"></my-input>
-      <my-input label="个人简介" placeholder="介绍一下自己吧"></my-input>
-      <my-select label="职业" placeholder="请选择">
-        <my-option value="dev">前端开发</my-option>
-        <my-option value="designer">设计师</my-option>
-        <my-option value="pm">产品经理</my-option>
-        <my-option value="other">其他</my-option>
-      </my-select>
-    </div>
-    <div slot="footer">
-      <my-button variant="secondary" onclick="document.getElementById('modal-form').hide()">取消</my-button>
-      <my-button variant="primary" onclick="handleFormModalConfirm()">保存修改</my-button>
-    </div>
-  </my-modal>
+      <section class="demo-section">
+        <div class="demo-title">消息提示条</div>
+        <div class="demo-row">
+          <my-button variant="primary" id="toast-success">showToast.success</my-button>
+          <my-button variant="danger" id="toast-error">showToast.error</my-button>
+          <my-button variant="warning" id="toast-warning">showToast.warning</my-button>
+          <my-button variant="outline" id="toast-info">showToast.info</my-button>
+        </div>
+      </section>
 
-  <my-modal id="modal-size" title="不同尺寸的对话框" size="lg">
-    <p>当前对话框尺寸为 <span class="code-tag">size="lg"</span>（720px）。</p>
-    <div style="display: flex; gap: 12px; flex-wrap: wrap;">
-      <my-button size="sm" variant="outline" onclick="document.getElementById('modal-size').setAttribute('size','sm')">sm</my-button>
-      <my-button size="sm" variant="outline" onclick="document.getElementById('modal-size').setAttribute('size','md')">md</my-button>
-      <my-button size="sm" variant="outline" onclick="document.getElementById('modal-size').setAttribute('size','lg')">lg</my-button>
-      <my-button size="sm" variant="outline" onclick="document.getElementById('modal-size').setAttribute('size','xl')">xl</my-button>
-      <my-button size="sm" variant="outline" onclick="document.getElementById('modal-size').setAttribute('size','full')">full</my-button>
-    </div>
-  </my-modal>
+      <section class="demo-section">
+        <div class="demo-title">事件日志</div>
+        <div class="event-log" id="event-log"></div>
+      </section>
+    </details>
 
-  <my-modal id="modal-async-save" title="保存更改">
-    <p>模拟异步保存操作，确认后按钮将进入 loading 状态直到操作完成。</p>
-    <div slot="footer">
-      <my-button variant="secondary" onclick="document.getElementById('modal-async-save').hide()">取消</my-button>
-      <my-button variant="primary" id="async-save-confirm">确认保存</my-button>
+  </main>
+
+  <!-- 模态对话框 -->
+  <my-modal id="demo-modal" title="对话框标题" size="md">
+    <p style="margin:0 0 12px;">这是一个可自定义内容的模态对话框，支持：</p>
+    <ul style="margin:0 0 12px 20px; padding:0; color:var(--ui-color-text-secondary); font-size:var(--ui-font-size-sm);">
+      <li>尺寸调整：sm / md / lg / xl / full</li>
+      <li>遮罩关闭 + ESC 关闭</li>
+      <li>before-close 关闭前拦截</li>
+      <li>loading 异步加载态</li>
+      <li>焦点陷阱（Tab 循环）</li>
+    </ul>
+    <my-input label="在框里填写点什么" placeholder="随意输入..." block></my-input>
+    <div slot="footer" style="display:flex; gap:10px; justify-content:flex-end;">
+      <my-button variant="outline" data-action="cancel">取消</my-button>
+      <my-button variant="primary" data-action="confirm">确认</my-button>
     </div>
   </my-modal>
 
   <script type="module">
-    import './src/components/button.js';
-    import './src/components/input.js';
-    import './src/components/select.js';
-    import './src/components/modal.js';
-    import './src/components/toast.js';
-    import './src/components/form.js';
-    import { showToast } from './src/components/toast.js';
-    import { MyModal } from './src/components/modal.js';
-    import { MyFieldset } from './src/components/form.js';
+    import {
+      MyButton, MyInput, MySelect, MyOption, MyModal, MyToast,
+      MyForm, MyFieldset, showToast
+    } from '/src/index.js';
 
-    function now() {
-      const d = new Date();
-      return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`;
-    }
-    function appendLog(id, type, detail) {
-      const log = document.getElementById(id);
-      if (!log) return;
-      const item = document.createElement('div');
-      item.className = 'log-item';
-      const d = detail ? ` <span style="color:#38bdf8;">${JSON.stringify(detail)}</span>` : '';
-      item.innerHTML = `<span class="log-time">${now()}</span><span class="log-type">${type}</span>${d}`;
-      log.appendChild(item);
-      log.scrollTop = log.scrollHeight;
+    // ====================== 工具函数 ======================
+    function $(id) { return document.getElementById(id); }
+    function appendLog(id, type, detail = {}) {
+      const box = $(id);
+      if (!box) return;
+      const time = new Date().toLocaleTimeString('zh-CN', { hour12: false });
+      const entry = document.createElement('div');
+      entry.className = 'log-item';
+      entry.innerHTML = `<span class="log-time">[${time}]</span><span class="log-type ${type}">${type}</span>${type}: ${JSON.stringify(detail).slice(0, 160)}`;
+      box.insertBefore(entry, box.firstChild);
+      if (box.children.length > 40) box.removeChild(box.lastChild);
     }
 
+    // ====================== 主题切换 ======================
     const ALL_THEME_PROPS = [
       '--ui-color-primary','--ui-color-primary-hover','--ui-color-primary-active',
-      '--ui-color-primary-light','--ui-color-border-focus'
+      '--ui-color-primary-light','--ui-color-primary-contrast',
+      '--ui-color-success','--ui-color-success-hover','--ui-color-success-light',
+      '--ui-color-warning','--ui-color-warning-hover','--ui-color-warning-light',
+      '--ui-color-danger','--ui-color-danger-hover','--ui-color-danger-light',
+      '--ui-color-info','--ui-color-info-hover','--ui-color-info-light'
     ];
     const themes = {
       default: {},
+      blue: {
+        '--ui-color-primary': '#2563eb',
+        '--ui-color-primary-hover': '#1d4ed8',
+        '--ui-color-primary-active': '#1e40af',
+        '--ui-color-primary-light': '#dbeafe',
+        '--ui-color-primary-contrast': '#ffffff'
+      },
       green: {
         '--ui-color-primary': '#059669',
         '--ui-color-primary-hover': '#047857',
         '--ui-color-primary-active': '#065f46',
-        '--ui-color-primary-light': '#ecfdf5',
-        '--ui-color-border-focus': '#059669',
+        '--ui-color-primary-light': '#d1fae5',
+        '--ui-color-primary-contrast': '#ffffff'
       },
       orange: {
         '--ui-color-primary': '#ea580c',
         '--ui-color-primary-hover': '#c2410c',
         '--ui-color-primary-active': '#9a3412',
-        '--ui-color-primary-light': '#fff7ed',
-        '--ui-color-border-focus': '#ea580c',
+        '--ui-color-primary-light': '#ffedd5',
+        '--ui-color-primary-contrast': '#ffffff'
       },
-      pink: {
-        '--ui-color-primary': '#db2777',
-        '--ui-color-primary-hover': '#be185d',
-        '--ui-color-primary-active': '#9d174d',
-        '--ui-color-primary-light': '#fdf2f8',
-        '--ui-color-border-focus': '#db2777',
+      rose: {
+        '--ui-color-primary': '#e11d48',
+        '--ui-color-primary-hover': '#be123c',
+        '--ui-color-primary-active': '#9f1239',
+        '--ui-color-primary-light': '#ffe4e6',
+        '--ui-color-primary-contrast': '#ffffff'
       }
     };
+    $('theme-select').addEventListener('change', e => {
+      const theme = themes[e.target.value];
+      const root = document.documentElement.style;
+      ALL_THEME_PROPS.forEach(p => root.removeProperty(p));
+      if (theme && Object.keys(theme).length) {
+        Object.entries(theme).forEach(([k, v]) => root.setProperty(k, v));
+      }
+    });
 
-    document.querySelectorAll('.theme-btn').forEach(btn => {
+    // ====================== 模拟失败模式 ======================
+    let simulateFailure = false;
+    $('sim-fail-toggle').addEventListener('click', () => {
+      simulateFailure = !simulateFailure;
+      const el = $('sim-fail-toggle');
+      const label = el.querySelector('.fail-label');
+      if (simulateFailure) {
+        el.classList.add('active');
+        label.textContent = '模拟失败模式：开（提交会报错）';
+      } else {
+        el.classList.remove('active');
+        label.textContent = '模拟失败模式：关';
+      }
+    });
+
+    // ====================== 初始数据回填（编辑页场景） ======================
+    const profileForm = $('profile-form');
+    const initialData = {
+      username: '张三',
+      gender: 'male',
+      region: 'beijing',
+      birthday: '1995-08-20',
+      joinDate: '2023-05-12',
+      email: 'zhangsan@example.com',
+      phone: '13812345678',
+      department: 'pd',
+      level: 'senior',
+      notify: 'important',
+      permission: 'dept',
+      bio: '5 年产品设计经验，主导过 3 个大型 C 端项目，擅长交互设计和用户研究。对设计系统、组件化有较深理解。'
+    };
+
+    // 等自定义元素就绪再回填，确保 select/input 都能接收 value setter
+    customElements.whenDefined('my-form').then(async () => {
+      await Promise.all([
+        customElements.whenDefined('my-input'),
+        customElements.whenDefined('my-select'),
+        customElements.whenDefined('my-option')
+      ]);
+
+      // 先给远程多选和主管下拉注入初始选中的 option，保证回填值能匹配到 label
+      const skillsSelect = profileForm.querySelector('my-select[name="skills"]');
+      const managerSelect = profileForm.querySelector('my-select[name="manager"]');
+
+      // 远程多选初始选项 + 值
+      skillsSelect.setOptions([
+        { value: 'ui', label: 'UI 设计' },
+        { value: 'ux', label: '用户研究' },
+        { value: 'figma', label: 'Figma' },
+        { value: 'sketch', label: 'Sketch' }
+      ]);
+      initialData.skills = ['ui', 'ux', 'figma']; // 会自动在 setInitialValues 里 join
+
+      // 远程单选（主管）初始选项 + 值
+      managerSelect.setOptions([
+        { value: 'M001', label: '李雷（设计总监）' },
+        { value: 'M002', label: '韩梅梅（产品总监）' }
+      ]);
+      initialData.manager = 'M001';
+
+      profileForm.setInitialValues(initialData);
+      bindDirtyBadge();
+    });
+
+    // ====================== dirty 状态联动 ======================
+    function bindDirtyBadge() {
+      const badge = $('dirty-badge');
+      const update = () => {
+        if (profileForm.isDirty) badge.classList.add('show');
+        else badge.classList.remove('show');
+      };
+      profileForm.addEventListener('validation-change', update);
+      profileForm.addEventListener('submit-success', update);
+      profileForm.addEventListener('reset', update);
+      // 定时兜底，避免 select 变化时没触发到
+      setInterval(update, 800);
+      update();
+    }
+
+    // ====================== 远程数据源 ======================
+    // 模拟员工列表（主管选择）
+    const MOCK_MANAGERS = Array.from({ length: 36 }).map((_, i) => {
+      const names = ['李雷','韩梅梅','王伟','刘芳','陈静','杨帆','赵磊','周婷','吴强','郑雪','孙浩','马琳'];
+      const dept = ['设计','产品','研发','市场','运营','人事'];
+      const n = names[i % names.length];
+      const idx = String(i + 1).padStart(3, '0');
+      return { value: 'M' + idx, label: `${n}（${dept[i % dept.length]}${['总监','经理','主管','组长'][i % 4]}）` };
+    });
+    // 模拟技能标签库
+    const MOCK_SKILLS = Array.from({ length: 62 }).map((_, i) => {
+      const pool = ['Figma','Sketch','用户研究','交互设计','视觉设计','动效设计','Axure','XMind','Jira','数据分析','HTML','CSS','JavaScript','TypeScript','Vue','React','Node.js','Python','MySQL','Redis','Kubernetes','Docker','Nginx','Git','敏捷开发','OKR','项目管理','演讲','英文沟通','商务谈判'];
+      const base = pool[i % pool.length];
+      return { value: `SK${String(i+1).padStart(3,'0')}`, label: i < pool.length ? base : `${base} ${Math.floor(i/pool.length)+1}` };
+    });
+
+    const PAGE_SIZE = 15;
+    function filterList(list, keyword) {
+      const kw = (keyword || '').trim().toLowerCase();
+      if (!kw) return list;
+      return list.filter(x => x.label.toLowerCase().includes(kw) || x.value.toLowerCase().includes(kw));
+    }
+    function paginate(list, page) {
+      const start = (page - 1) * PAGE_SIZE;
+      return list.slice(start, start + PAGE_SIZE);
+    }
+    async function mockDelay(ms = 500 + Math.random() * 400) {
+      await new Promise(r => setTimeout(r, ms));
+    }
+
+    // 主管远程下拉（搜索+分页）
+    const managerSelect = document.querySelector('my-select[name="manager"]');
+    managerSelect.addEventListener('fetch-options', async e => {
+      const { keyword, page } = e.detail;
+      await mockDelay(550);
+      const filtered = filterList(MOCK_MANAGERS, keyword);
+      const paged = paginate(filtered, page);
+      if (page === 1) managerSelect.setOptions(paged);
+      else managerSelect.appendOptions(paged);
+      managerSelect.hasMore = (page * PAGE_SIZE) < filtered.length;
+      managerSelect.loading = false;
+    });
+    managerSelect.addEventListener('load-more', async e => {
+      const { keyword, page } = e.detail;
+      await mockDelay();
+      const filtered = filterList(MOCK_MANAGERS, keyword);
+      const paged = paginate(filtered, page);
+      managerSelect.appendOptions(paged);
+      managerSelect.hasMore = (page * PAGE_SIZE) < filtered.length;
+      managerSelect.loading = false;
+    });
+
+    // 技能标签远程下拉（搜索+分页）
+    const skillsSelect = document.querySelector('my-select[name="skills"]');
+    skillsSelect.addEventListener('fetch-options', async e => {
+      const { keyword, page } = e.detail;
+      await mockDelay(600);
+      const filtered = filterList(MOCK_SKILLS, keyword);
+      const paged = paginate(filtered, page);
+      if (page === 1) skillsSelect.setOptions(paged);
+      else skillsSelect.appendOptions(paged);
+      skillsSelect.hasMore = (page * PAGE_SIZE) < filtered.length;
+      skillsSelect.loading = false;
+    });
+    skillsSelect.addEventListener('load-more', async e => {
+      const { keyword, page } = e.detail;
+      await mockDelay();
+      const filtered = filterList(MOCK_SKILLS, keyword);
+      const paged = paginate(filtered, page);
+      skillsSelect.appendOptions(paged);
+      skillsSelect.hasMore = (page * PAGE_SIZE) < filtered.length;
+      skillsSelect.loading = false;
+    });
+
+    // ====================== 表单按钮动作 ======================
+    const resultCard = $('result-card');
+    const resultHead = $('result-head');
+    const resultIcon = $('result-icon');
+    const resultTitle = $('result-title');
+    const resultTime = $('result-time');
+    const statTotal = $('stat-total');
+    const statChanged = $('stat-changed');
+    const statValid = $('stat-valid');
+    const statInvalid = $('stat-invalid');
+    const changeList = $('change-list');
+    const changesSection = $('changes-section');
+    const submitPayload = $('submit-payload');
+    const backendResponse = $('backend-response');
+
+    function formatValue(val, fieldName) {
+      if (val === undefined || val === null || val === '') return '（空）';
+      const selectEl = profileForm.querySelector(`my-select[name="${fieldName}"]`);
+      if (selectEl && typeof selectEl.getSelectedLabels === 'function') {
+        const labels = selectEl.getSelectedLabels();
+        if (labels && labels.length) return labels.join('、');
+      }
+      if (typeof val === 'string' && val.includes(',') && fieldName) {
+        const parts = val.split(',').filter(Boolean);
+        // 可能是多选，尝试用 select 的标签显示
+        if (selectEl && typeof selectEl.getSelectedLabels === 'function') {
+          const labels = selectEl.getSelectedLabels();
+          if (labels.length === parts.length) return labels.join('、');
+        }
+      }
+      return String(val);
+    }
+
+    function renderResult({ resultState, formData, changedValues, summary, backend }) {
+      resultCard.classList.add('show');
+      if (resultState === 'success') {
+        resultHead.className = 'result-head success';
+        resultIcon.textContent = '✓';
+        resultTitle.textContent = '资料保存成功';
+      } else {
+        resultHead.className = 'result-head error';
+        resultIcon.textContent = '✕';
+        resultTitle.textContent = '提交失败，数据已保留，请检查后重试';
+      }
+      resultTime.textContent = '于 ' + new Date().toLocaleString('zh-CN', { hour12: false });
+
+      statTotal.textContent = summary.total;
+      statValid.textContent = summary.valid;
+      statInvalid.textContent = summary.invalid;
+      statChanged.textContent = (summary.changedFields || []).length;
+
+      // 变更列表
+      const cfs = Object.entries(changedValues || {});
+      if (cfs.length === 0) {
+        changesSection.style.display = 'block';
+        changeList.innerHTML = '<div class="no-changes">无任何字段被修改，后端收到的 payload 为空（submit-changes-only 模式）</div>';
+      } else {
+        changesSection.style.display = 'block';
+        const fieldLabels = {
+          username: '姓名', gender: '性别', region: '地区', birthday: '出生日期',
+          joinDate: '入职日期', email: '邮箱', phone: '手机号', manager: '上级主管',
+          department: '所属部门', skills: '技能标签', level: '职位级别', bio: '个人简介',
+          notify: '系统通知', permission: '数据权限'
+        };
+        changeList.innerHTML = cfs.map(([name, cv]) => {
+          const fn = fieldLabels[name] || name;
+          const oldV = formatValue(cv.oldValue, name);
+          const newV = formatValue(cv.newValue, name);
+          return `<div class="change-row">
+            <div class="field-name">${fn}</div>
+            <div class="old-val">${oldV}</div>
+            <div class="arrow">→</div>
+            <div class="new-val">${newV}</div>
+          </div>`;
+        }).join('');
+      }
+
+      submitPayload.textContent = JSON.stringify(formData, null, 2) || '{}';
+      backendResponse.textContent = JSON.stringify(backend, null, 2) || '{}';
+    }
+
+    // 提交按钮
+    $('btn-submit').addEventListener('click', async () => {
+      resultCard.classList.remove('show');
+      const submitResult = profileForm.submit(async (formData) => {
+        if (simulateFailure) {
+          await new Promise(r => setTimeout(r, 1500));
+          throw new Error('ERR_NETWORK_TIMEOUT：与后端通信超时，请稍后重试');
+        }
+        await new Promise(r => setTimeout(r, 1800));
+        const savedCount = Object.keys(formData).length;
+        return {
+          savedCount,
+          totalFields: 14,
+          userId: profileForm.getFieldValue('userId'),
+          updatedAt: new Date().toISOString(),
+          transactionId: 'TXN_' + Math.random().toString(36).slice(2, 10).toUpperCase()
+        };
+      });
+
+      appendLog('event-log', 'submit', {
+        valid: submitResult.valid,
+        changedFields: submitResult.summary.changedFields || [],
+        summary: submitResult.summary
+      });
+
+      if (submitResult.valid) {
+        // 等待回调完成（submit() 是同步返回，但 loading 期间会派发 submit-success / submit-error）
+        profileForm.addEventListener('submit-success', (e) => {
+          renderResult({
+            resultState: 'success',
+            formData: submitResult.formData,
+            changedValues: submitResult.changedValues || {},
+            summary: submitResult.summary,
+            backend: e.detail.result
+          });
+          appendLog('event-log', 'success', e.detail.result);
+        }, { once: true });
+        profileForm.addEventListener('submit-error', (e) => {
+          renderResult({
+            resultState: 'error',
+            formData: submitResult.formData,
+            changedValues: submitResult.changedValues || {},
+            summary: submitResult.summary,
+            backend: { error: e.detail.error?.message || String(e.detail.error) }
+          });
+          appendLog('event-log', 'error', { error: e.detail.error?.message || String(e.detail.error) });
+          showToast.error('提交失败：' + (e.detail.error?.message || '未知错误'));
+        }, { once: true });
+      } else {
+        // 校验失败：显示 toast，清空结果卡
+        const errList = Object.entries(submitResult.summary.errors)
+          .map(([k, v]) => `${k}: ${v}`).join('；');
+        showToast.error(`校验未通过：${errList}`);
+        appendLog('event-log', 'error', submitResult.summary.errors);
+      }
+    });
+
+    // 仅校验
+    $('btn-validate').addEventListener('click', () => {
+      resultCard.classList.remove('show');
+      const r = profileForm.validate();
+      appendLog('event-log', r.valid ? 'success' : 'error', {
+        valid: r.valid,
+        summary: r.summary
+      });
+      if (r.valid) {
+        showToast.success('🎉 所有字段校验通过，当前共 ' + r.summary.total + ' 个字段均符合要求');
+      } else {
+        const n = r.summary.invalid;
+        showToast.warning(`有 ${n} 个字段未通过校验，请检查标红的字段`);
+      }
+    });
+
+    // 重置（回到初始值）
+    $('btn-reset').addEventListener('click', () => {
+      profileForm.reset();
+      resultCard.classList.remove('show');
+      showToast.info('已恢复为初始回填值');
+      appendLog('event-log', 'event', 'reset-to-initial');
+    });
+
+    // 清空
+    $('btn-clear').addEventListener('click', async () => {
+      const ok = await MyModal.confirm({
+        title: '确认清空表单？',
+        content: '所有字段（含只读编号）会被清空，此操作不可撤销。可随时点"恢复初始值"回到回填状态。',
+        confirmText: '确认清空',
+        cancelText: '取消',
+        variant: 'danger'
+      });
+      if (ok) {
+        profileForm.clear();
+        resultCard.classList.remove('show');
+        showToast.info('表单已全部清空');
+        appendLog('event-log', 'event', 'form-clear');
+      }
+    });
+
+    // 查看变更
+    $('show-changes-btn').addEventListener('click', () => {
+      if (!profileForm.isDirty) {
+        showToast.info('当前所有字段均与初始值一致，无变更');
+        return;
+      }
+      const df = profileForm.getDirtyFields();
+      const cv = profileForm.getChangedValues();
+      const msg = `检测到 ${df.length} 个字段变更：\n` + df.map(n => {
+        const c = cv[n];
+        return `  · ${n}: ${formatValue(c.oldValue, n)} → ${formatValue(c.newValue, n)}`;
+      }).join('\n');
+      MyModal.confirm({
+        title: '变更字段预览',
+        content: `<pre style="margin:0; font-size:12px; background:#0f172a; color:#e2e8f0; padding:12px; border-radius:6px; white-space:pre-wrap;">${msg}</pre>`,
+        confirmText: '好的',
+        cancelText: '去修改',
+        variant: 'primary'
+      });
+    });
+
+    // ====================== 组件演示区：按钮 ======================
+    (function renderButtons() {
+      const row = $('btn-demo-row');
+      const variants = [
+        { v: 'primary', label: 'Primary' },
+        { v: 'secondary', label: 'Secondary' },
+        { v: 'outline', label: 'Outline' },
+        { v: 'ghost', label: 'Ghost' },
+        { v: 'danger', label: 'Danger' },
+        { v: 'primary', label: 'Loading', loading: true },
+        { v: 'primary', label: 'Disabled', disabled: true },
+        { v: 'primary', label: 'Rounded', rounded: 'full' },
+      ];
+      variants.forEach(({ v, label, loading, disabled, rounded }) => {
+        const b = document.createElement('my-button');
+        b.setAttribute('variant', v);
+        b.textContent = label;
+        if (loading) b.setAttribute('loading', '');
+        if (disabled) b.setAttribute('disabled', '');
+        if (rounded) b.setAttribute('rounded', rounded);
+        b.addEventListener('click', () => {
+          appendLog('event-log', 'event', { button: label, variant: v });
+          if (label === 'Loading') {
+            b.loading = true;
+            setTimeout(() => b.loading = false, 1500);
+          }
+        });
+        row.appendChild(b);
+      });
+    })();
+
+    // ====================== 组件演示区：模态对话框 ======================
+    const demoModal = $('demo-modal');
+    demoModal.addEventListener('before-close', e => {
+      if (demoModal.dataset.block === '1') {
+        e.preventDefault();
+        showToast.warning('关闭被 before-close 拦截，请点击取消/确认按钮');
+      }
+    });
+    demoModal.querySelectorAll('[data-action]').forEach(btn => {
       btn.addEventListener('click', () => {
-        document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        const root = document.documentElement;
-        ALL_THEME_PROPS.forEach(k => root.style.removeProperty(k));
-        const theme = themes[btn.dataset.theme];
-        Object.keys(theme).forEach(k => root.style.setProperty(k, theme[k]));
-        if (btn.dataset.theme === 'default') {
-          showToast.success('已恢复默认主题');
+        const act = btn.dataset.action;
+        if (act === 'confirm') {
+          demoModal.loading = true;
+          btn.loading = true;
+          setTimeout(() => {
+            demoModal.loading = false;
+            btn.loading = false;
+            showToast.success('确认操作已完成');
+            demoModal.hide();
+          }, 1400);
         } else {
-          showToast.success(`已切换到 ${btn.dataset.theme} 主题`);
+          demoModal.hide();
         }
       });
     });
-
-    let clickCount = 0;
-    const btnCount = document.getElementById('btn-count');
-    btnCount.addEventListener('click', () => {
-      clickCount++;
-      btnCount.textContent = `点击了 ${clickCount} 次`;
-    });
-
-    const inputEl = document.querySelector('my-input[label="用户名"]');
-    inputEl.addEventListener('input', e => appendLog('input-log', 'input', e.detail));
-    inputEl.addEventListener('change', e => appendLog('input-log', 'change', e.detail));
-    inputEl.addEventListener('clear', () => appendLog('input-log', 'clear'));
-
-    const selectEl = document.querySelector('my-select[label="城市"]');
-    selectEl.addEventListener('change', e => appendLog('select-log', 'change', e.detail));
-    selectEl.addEventListener('open', () => appendLog('select-log', 'open'));
-    selectEl.addEventListener('close', () => appendLog('select-log', 'close'));
-    selectEl.addEventListener('clear', () => appendLog('select-log', 'clear'));
-
-    document.getElementById('open-basic').addEventListener('click', () => {
-      document.getElementById('modal-basic').show();
-    });
-    document.getElementById('open-form').addEventListener('click', () => {
-      document.getElementById('modal-form').show();
-    });
-    document.getElementById('open-sizes').addEventListener('click', () => {
-      document.getElementById('modal-size').show();
-    });
-
-    document.getElementById('modal-basic').addEventListener('close', e => {
-      appendLog('modal-log', 'close', e.detail);
-    });
-
-    window.handleFormModalConfirm = function() {
-      document.getElementById('modal-form').hide();
-      showToast.success('个人信息已保存');
-    };
-
-    document.getElementById('open-quick-confirm').addEventListener('click', async () => {
-      const confirmed = await MyModal.confirm({
-        title: '确认操作',
-        content: '你确定要执行此操作吗？这是通过 MyModal.confirm() 快捷调用的确认框。',
-        confirmText: '确认',
-        cancelText: '取消'
-      });
-      if (confirmed) {
-        showToast.success('你点击了确认');
-        appendLog('modal-log', 'quick-confirm', { confirmed: true });
-      } else {
-        showToast.info('你点击了取消');
-        appendLog('modal-log', 'quick-confirm', { confirmed: false });
-      }
-    });
-
-    document.getElementById('open-delete-confirm').addEventListener('click', async () => {
-      const confirmed = await MyModal.confirm({
-        title: '确认删除',
-        content: '此操作将永久删除该数据，无法恢复。确定要继续吗？',
+    $('demo-open-modal').addEventListener('click', () => demoModal.show());
+    $('demo-confirm').addEventListener('click', async () => {
+      const ok = await MyModal.confirm({
+        title: '确认删除？',
+        content: '此操作将永久删除所选数据，删除后无法恢复。',
         confirmText: '确认删除',
-        cancelText: '再想想',
-        variant: 'danger',
+        cancelText: '取消',
+        variant: 'danger'
+      });
+      showToast[ok ? 'success' : 'info'](ok ? '已删除' : '已取消');
+    });
+    $('demo-async-confirm').addEventListener('click', async () => {
+      demoModal.loading = true;
+      const ok = await MyModal.confirm({
+        title: '保存当前修改？',
+        content: '系统将把当前编辑的内容提交到服务器。',
+        confirmText: '保存',
+        cancelText: '不保存',
+        variant: 'primary',
         size: 'sm'
       });
-      if (confirmed) {
-        showToast.warning('数据已删除（模拟）');
-        appendLog('modal-log', 'delete-confirm', { confirmed: true });
+      if (ok) {
+        demoModal.loading = true;
+        await new Promise(r => setTimeout(r, 1600));
+        demoModal.loading = false;
+        showToast.success('保存成功');
       }
     });
-
-    document.getElementById('open-async-save').addEventListener('click', () => {
-      const modal = document.getElementById('modal-async-save');
-      modal.show();
-      const confirmBtn = document.getElementById('async-save-confirm');
-      const newBtn = confirmBtn.cloneNode(true);
-      confirmBtn.parentNode.replaceChild(newBtn, confirmBtn);
-      newBtn.addEventListener('click', () => {
-        modal.loading = true;
-        newBtn.loading = true;
-        appendLog('modal-log', 'async-save-start');
-        setTimeout(() => {
-          modal.loading = false;
-          modal.hide();
-          showToast.success('保存成功！');
-          appendLog('modal-log', 'async-save-done');
-        }, 2000);
-      });
+    $('demo-before-close').addEventListener('click', () => {
+      demoModal.dataset.block = '1';
+      demoModal.show();
+      setTimeout(() => { demoModal.dataset.block = '0'; showToast.info('拦截已解除'); }, 5000);
+      showToast.info('已开启 5 秒关闭拦截（点 X 或 ESC 会被 before-close 拦截）');
     });
 
-    document.getElementById('toast-success').addEventListener('click', () => showToast.success('操作成功完成！'));
-    document.getElementById('toast-warning').addEventListener('click', () => showToast.warning('请注意检查您的输入'));
-    document.getElementById('toast-error').addEventListener('click', () => showToast.error('发生错误，请稍后重试'));
-    document.getElementById('toast-info').addEventListener('click', () => showToast.info('这是一条提示信息'));
-    document.getElementById('toast-closable').addEventListener('click', () => {
-      showToast({ message: '点击右侧 × 可关闭此提示', type: 'info', closable: true, duration: 30000 });
-    });
-    document.getElementById('toast-long').addEventListener('click', () => {
-      showToast({ message: '这条消息会停留 5 秒钟', type: 'success', duration: 5000 });
-    });
-    document.getElementById('toast-multi').addEventListener('click', () => {
-      showToast.success('第 1 条');
-      setTimeout(() => showToast.info('第 2 条'), 200);
-      setTimeout(() => showToast.warning('第 3 条'), 400);
-    });
+    // ====================== 组件演示区：Toast ======================
+    $('toast-success').addEventListener('click', () => showToast.success('操作成功！'));
+    $('toast-error').addEventListener('click', () => showToast.error('出现错误，请稍后重试'));
+    $('toast-warning').addEventListener('click', () => showToast.warning('注意：此操作有风险'));
+    $('toast-info').addEventListener('click', () => showToast.info('提示信息：系统将于今晚维护'));
 
-    const remoteSelect = document.getElementById('remote-select');
-    const mockRemoteUsers = [
-      { id: 'u1', name: '张三 - 前端工程师' },
-      { id: 'u2', name: '李四 - 后端工程师' },
-      { id: 'u3', name: '王五 - 产品经理' },
-      { id: 'u4', name: '赵六 - UI设计师' },
-      { id: 'u5', name: '钱七 - 测试工程师' },
-      { id: 'u6', name: '孙八 - DevOps工程师' },
-    ];
-    document.getElementById('btn-load-remote').addEventListener('click', async () => {
-      remoteSelect.loading = true;
-      showToast.info('正在加载远程数据...');
-      await new Promise(r => setTimeout(r, 1500));
-      remoteSelect.innerHTML = mockRemoteUsers
-        .map(u => `<my-option value="${u.id}">${u.name}</my-option>`)
-        .join('');
-      remoteSelect.loading = false;
-      showToast.success(`已加载 ${mockRemoteUsers.length} 条远程数据`);
+    // ====================== 组件演示区：远程下拉 ======================
+    const demoRemote = $('demo-remote');
+    demoRemote.addEventListener('fetch-options', async e => {
+      const { keyword, page } = e.detail;
+      await mockDelay();
+      const filtered = filterList(MOCK_MANAGERS, keyword);
+      const paged = paginate(filtered, page);
+      if (page === 1) demoRemote.setOptions(paged);
+      else demoRemote.appendOptions(paged);
+      demoRemote.hasMore = (page * PAGE_SIZE) < filtered.length;
+      demoRemote.loading = false;
     });
-    document.getElementById('btn-clear-remote').addEventListener('click', () => {
-      remoteSelect.innerHTML = '';
-      remoteSelect.value = '';
+    demoRemote.addEventListener('load-more', async e => {
+      const { keyword, page } = e.detail;
+      await mockDelay();
+      const filtered = filterList(MOCK_MANAGERS, keyword);
+      const paged = paginate(filtered, page);
+      demoRemote.appendOptions(paged);
+      demoRemote.hasMore = (page * PAGE_SIZE) < filtered.length;
+      demoRemote.loading = false;
+    });
+    $('demo-remote-load').addEventListener('click', () => {
+      demoRemote.clearOptions();
+      demoRemote.open();
+    });
+    $('demo-remote-clear').addEventListener('click', () => {
+      demoRemote.clearOptions();
+      demoRemote.value = '';
       showToast.info('远程选项已清空');
     });
 
-    const demoForm = document.getElementById('demo-form');
-    const formResult = document.getElementById('form-result');
-    const formResultContent = document.getElementById('form-result-content');
-
-    document.getElementById('form-submit').addEventListener('click', async () => {
-      formResult.style.display = 'none';
-      const result = demoForm.submit(async (formData) => {
-        await new Promise(r => setTimeout(r, 1500));
-        return { id: 'USER_' + Math.random().toString(36).slice(2, 8), createdAt: new Date().toISOString() };
+    // 监听 profile form 的 submit-changed
+    profileForm.addEventListener('submit-changed', e => {
+      appendLog('event-log', 'change', {
+        changedFields: Object.keys(e.detail.changedValues),
+        formData: e.detail.formData
       });
-
-      appendLog('form-log', 'submit', { valid: result.valid, summary: result.summary });
-
-      if (result.valid) {
-        demoForm.addEventListener('submit-success', (e) => {
-          const fullData = {
-            提交返回值: e.detail.result,
-            表单数据: demoForm.getFormData(),
-            校验摘要: result.summary
-          };
-          const skills = demoForm.getFieldValue('skills');
-          if (typeof skills === 'string' && skills) {
-            fullData.表单数据.skills = skills.split(',').filter(Boolean);
-          }
-          formResultContent.textContent = JSON.stringify(fullData, null, 2);
-          formResult.style.display = 'block';
-          showToast.success(`注册成功！用户ID：${e.detail.result.id}`);
-        }, { once: true });
-      } else {
-        const errList = Object.entries(result.summary.errors)
-          .map(([k, v]) => `${k}: ${v}`).join('；');
-        showToast.error(`校验未通过：${errList}`);
-      }
     });
 
-    document.getElementById('form-reset').addEventListener('click', () => {
-      demoForm.reset();
-      formResult.style.display = 'none';
-      showToast.info('表单已重置');
-      appendLog('form-log', 'reset');
+    profileForm.addEventListener('validation-cleared', e => {
+      appendLog('event-log', 'success', { type: 'validation-cleared', total: e.detail.results.length });
     });
 
-    document.getElementById('form-validate').addEventListener('click', () => {
-      const result = demoForm.validate();
-      appendLog('form-log', 'validate', { valid: result.valid, summary: result.summary });
-      if (result.valid) {
-        showToast.success('校验通过！');
-      } else {
-        showToast.error(`校验未通过（${result.summary.invalid}个字段），请检查标红字段`);
-      }
-    });
-
-    document.getElementById('form-fill').addEventListener('click', () => {
-      demoForm.setFieldValue('username', 'demo_user_2024');
-      demoForm.setFieldValue('email', 'demo@example.com');
-      demoForm.setFieldValue('password', 'secret123');
-      demoForm.setFieldValue('gender', 'male');
-      demoForm.setFieldValue('country', 'cn');
-      demoForm.setFieldValue('skills', 'html,css,js,ts');
-      demoForm.setFieldValue('bio', '热爱前端开发的工程师');
-      showToast.success('已自动填充演示数据');
-      appendLog('form-log', 'auto-fill');
-    });
-
-    demoForm.addEventListener('valid-submit', e => {
-      appendLog('form-log', 'valid-submit', e.detail);
-    });
-    demoForm.addEventListener('submit-success', e => {
-      appendLog('form-log', 'submit-success', e.detail);
-    });
+    appendLog('event-log', 'event', { init: '页面已就绪，数据已回填' });
   </script>
 </body>
 </html>
